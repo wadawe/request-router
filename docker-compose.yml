@@ -1,0 +1,7 @@
+services:
+
+  build-env:
+    build:
+      dockerfile: ./Dockerfile
+    volumes:
+      - ./bin:/go/src/github.com/wadawe/request-router/bin
