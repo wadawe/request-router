@@ -48,7 +48,7 @@ func NewPathTarget(cfg *config.TargetConfig, pathName string, pathEndpoint strin
 	}
 
 	// Override the endpoint if specified in the configuration
-	if cfg.UpstreamPath == "" {
+	if cfg.UpstreamPath != "" {
 		pt.Endpoint = cfg.UpstreamPath
 	}
 
