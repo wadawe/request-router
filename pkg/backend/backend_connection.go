@@ -20,11 +20,11 @@ import (
 )
 
 type BackendConnection struct {
-	Name     string         // The name of the connection
-	Location string         // The base URL of connection
-	PingPath string         // The URL to ping for the connection
-	Client   *http.Client   // The HTTP client to use for requests
-	WG       sync.WaitGroup // Tracks in-flight requests for graceful shutdown
+	Name         string         // The name of the connection
+	Location     string         // The base URL of connection
+	PingEndpoint string         // The URL to ping for the connection
+	Client       *http.Client   // The HTTP client to use for requests
+	WG           sync.WaitGroup // Tracks in-flight requests for graceful shutdown
 }
 
 type BackendResponse struct {
@@ -42,12 +42,6 @@ var (
 // Create a new reusable connection to a backend connection
 func NewBackendConnection(name string, location string, ping string, timeout time.Duration, clientCert string, clientKey string) (*BackendConnection, error) {
 	log.Printf("Creating new backend connection: %s", name)
-
-	pingURI := defaultPingLocation
-	if ping != "" {
-		pingURI = ping
-	}
-	pingURI = "/" + strings.TrimLeft(pingURI, "/") // Add leading slash
 
 	if timeout <= 0 {
 		return nil, fmt.Errorf("timeout must be greater than 0 for backend: %s", name)
@@ -76,9 +70,9 @@ func NewBackendConnection(name string, location string, ping string, timeout tim
 	}
 
 	bConn := &BackendConnection{
-		Name:     name,
-		Location: strings.TrimRight(location, "/"), // Remove trailing slash
-		PingPath: pingURI,
+		Name:         name,
+		Location:     strings.TrimRight(location, "/"),  // Remove trailing slash
+		PingEndpoint: "/" + strings.TrimLeft(ping, "/"), // Add leading slash
 		Client: &http.Client{
 			Timeout:   timeout,
 			Transport: transport,

@@ -74,7 +74,7 @@ func (bm *BackendManager) loadBackendConnections(cfg *config.ConfigFile) error {
 		if err != nil {
 			return fmt.Errorf("error creating connection (%s) timeout: %s", cCfg.Name, err)
 		}
-		newConnection, err := NewBackendConnection(cCfg.Name, cCfg.Location, cCfg.PingURI, timeout, cCfg.ClientCert, cCfg.ClientKey)
+		newConnection, err := NewBackendConnection(cCfg.Name, cCfg.Location, cCfg.PingEndpoint, timeout, cCfg.ClientCert, cCfg.ClientKey)
 		if err != nil {
 			return fmt.Errorf("error creating connection (%s): %s", cCfg.Name, err)
 		}

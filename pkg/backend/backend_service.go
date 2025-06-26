@@ -53,7 +53,7 @@ func (bs *BackendService) GetFastestHealthyConnection() (*BackendConnection, err
 	for _, conn := range conns {
 		go func(bc *BackendConnection) {
 			defer wg.Done()
-			resp, err := bc.SendRequest(http.MethodGet, bc.PingPath, nil, nil, nil, nil)
+			resp, err := bc.SendRequest(http.MethodGet, bc.PingEndpoint, nil, nil, nil, nil)
 			if err != nil {
 				return
 			}

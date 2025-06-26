@@ -67,7 +67,8 @@ func ReadConfig(filename string) (*ConfigFile, error) {
 	if _, err := toml.NewDecoder(openFile).Decode(config); err != nil {
 		return nil, fmt.Errorf("failed to decode TOML: %w", err)
 	}
-	if err = config.ValidateConfig(); err != nil {
+	config.ApplyDefaults()
+	if err = config.Validate(); err != nil {
 		return nil, err
 	}
 	return config, nil

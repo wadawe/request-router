@@ -4,7 +4,7 @@
 
 [license-img]: https://img.shields.io/badge/license-MIT-blue.svg
 [license-href]: ./LICENSE
-[config-href]: ./example.conf
+[config-href]: ./template.conf
 [pkg-href]: ./pkg/
 
 ---
@@ -40,17 +40,24 @@ The goal of `request-router` is to offer a streamlined, configuration-first rout
 
 ## Terminology
 
-* **Connection** : An individual upstream endpoint capable of receiving HTTP requests. It represents a single, addressable server or service instance.
-* **Service** : A logical grouping of one or more connections that form a service. Requests are routed to a service when selected by a target.
-* **Backend** : The internal subsystem that manages all services and their associated connections at runtime. It provides an interface for the router to dispatch requests and supports dynamic reloading.
-* **Router** : A component that listens for incoming HTTP requests and evaluates them against defined routing rules. It uses the backend to resolve services and forward requests accordingly.
-* **Path** : A specific route within a router that matches incoming requests based on defined criteria. Each path delegates matching requests to one or more targets.
-* **Target** : A routing rule within a path that determines how and where to forward a request. Targets can filter requests, apply routing logic, and optionally replicate requests elsewhere.
-* **Replica** : A secondary destination that receives a copy of the request when specified by a target. Responses from replicas are ignored by the router.
-* **Filter** : A conditional rule used to determine whether a target should handle a request. Filters extract values from a specific source and compare them to regular expressions.
-* **Request Strategy** : The algorithm used to decide how a request is routed to one or more connections within a service.
-* **Request Action** : The behavior the router should take when a target is selected.
-* **Context** : An internal data structure used to track information about a request as it moves through the router. It carries timestamps, trace metadata, status codes, and arbitrary key-value pairs.
+* **Connection**: A single upstream HTTP endpoint capable of handling requests. Connections are addressable server instances used by services.
+* **Service**: A logical grouping of connections. Targets route requests to services, which handle them according to the selected request strategy.
+* **Backend**: The internal subsystem responsible for managing services and connections. It supports runtime reloading and request dispatching.
+* **Router**: A listener bound to a specific address and port. It matches incoming requests to configured paths and routes them accordingly.
+* **Path**: A routing definition within a router that matches on URL and HTTP method. Each path delegates request handling to one or more targets.
+* **Target**: A rule within a path that defines how a matching request should be handled. Targets support filtering, routing logic, and optional replication to secondary destinations (replicas).
+* **Replica**: A secondary service that receives a forwarded copy of a request from a target. Replica responses are not returned to the client.
+* **Filter Strategy**: Determines how filters are evaluated within a target. Can be `all` (all filters must match) or `any` (at least one must match).
+* **Request Strategy**: The method used to select connections for routing within a service. Includes `ping`, `primary`, `sequence`, `success`, and `highest`.
+* **Request Action**: The action a target takes when selected. Can be `forward`, `reject`, `simulate`, or `offload`.
+* **Request Filter**: A condition that checks if a request matches based on headers or query parameters, using regular expressions.
+* **Header Override**: A key/value header setting applied to requests before forwarding them to the target service. Can also be used to remove headers by setting their value to an empty string.
+* **Context**: A per-request data structure that tracks metadata such as trace steps, status codes, and logging details as the request flows through the router.
+* **Access Log**: A per-router log that records summary information for each processed request, including trace path, status codes, and timings.
+* **Target Logger**: A per-target log used to capture detailed errors, request failures, and replica issues.
+* **Endpoint**: A general term referring to any addressable URL path where the router or an upstream connection expects to receive requests.
+* **Incoming Endpoint**: The URL path where a router path expects to receive requests from clients.
+* **Upstream Endpoint**: The URL path used by a target when forwarding requests to a backend service.
 
 ## Requirements
 
@@ -78,11 +85,15 @@ make all
 
 ## Usage
 
-A client can make relevant HTTP requests to a router which is running and bound to a specific port via the router manager. The router then tests the request against all path endpoints and methods. If the request matches a path endpoint and method, the path then assess all of its targets to determine which service the request is for. The request is evaluated by each of the target's filters, using the defined filter strategy, to determine if the request matches the requirements for being routed to the target's destination service. If it matches, the request is sent to that service using the target's request strategy. If it does not match, the next target is assessed, and so on. If no match is found, the request is rejected.
+Incoming HTTP requests are received by a router instance bound to a specific address. Each request is matched against configured path endpoints and HTTP methods. If a matching path is found, its targets are evaluated in order.
+
+Each target applies its filter strategy (`any` or `all`) to determine if the request meets its matching criteria, using values extracted from headers or query parameters. If matched, the target handles the request using its configured action (`forward`, `reject`, `simulate`, or `offload`). For forwarding actions, the target selects a backend service and routes the request using a defined strategy (`ping`, `primary`, `sequence`, `success`, or `highest`). 
+
+If no target matches, the request is rejected with a `400 Bad Request`.
 
 ### Configuration
 
-A full break-down of the configuration file structure can be found in the [example.conf][config-href] file.
+A full break-down of the configuration file structure can be found in the [template.conf][config-href] file.
 
 ### Development
 
