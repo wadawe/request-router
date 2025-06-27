@@ -59,7 +59,8 @@ func NewServiceRouter(cfg *config.RouterConfig) (*ServiceRouter, error) {
 		}
 	}
 
-	// Collapse to comma-separated string for each endpoint
+	// Collapse to comma-separated string for each endpoint, ready to be used for the OPTIONS response
+	// We precompute this to avoid recalculating it for every request
 	for endpoint, methods := range methodsPerEndpoint {
 		sr.Handlers[endpoint].Methods = strings.Join(methods, ", ")
 	}
