@@ -16,7 +16,7 @@ import (
 
 	"github.com/wadawe/request-router/pkg/backend"
 	"github.com/wadawe/request-router/pkg/config"
-	"github.com/wadawe/request-router/pkg/service"
+	"github.com/wadawe/request-router/pkg/core"
 	"github.com/wadawe/request-router/pkg/utils"
 )
 
@@ -38,7 +38,7 @@ var (
 )
 
 var (
-	routerManager *service.RouterManager
+	routerManager *core.RouterManager
 	stopping      bool = false
 )
 
@@ -140,7 +140,7 @@ func StartRouterService(cfg *config.ConfigFile) error {
 	log.Printf("Starting router service v%s (main.StartRouterService)", buildVersion)
 
 	var err error
-	routerManager, err = service.NewRouterManager(cfg)
+	routerManager, err = core.NewRouterManager(cfg)
 	if err != nil {
 		return err
 	}

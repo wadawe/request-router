@@ -1,7 +1,7 @@
-// service.go
+// core.go
 // This file contains the functions for creating and managing routers
 
-package service
+package core
 
 import (
 	"fmt"
@@ -10,7 +10,7 @@ import (
 
 	"github.com/wadawe/request-router/pkg/backend"
 	"github.com/wadawe/request-router/pkg/config"
-	"github.com/wadawe/request-router/pkg/service/router"
+	"github.com/wadawe/request-router/pkg/core/router"
 )
 
 type RouterManager struct {

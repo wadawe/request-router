@@ -4,7 +4,7 @@
 
 [license-img]: https://img.shields.io/badge/license-MIT-blue.svg
 [license-href]: ./LICENSE
-[config-href]: ./template.conf
+[config-href]: ./configs/_template.conf
 [pkg-href]: ./pkg/
 
 ---
@@ -42,6 +42,7 @@ The goal of `request-router` is to offer a streamlined, configuration-first rout
 
 * **Connection**: A single upstream HTTP endpoint capable of handling requests. Connections are addressable server instances used by services.
 * **Service**: A logical grouping of connections. Targets route requests to services, which handle them according to the selected request strategy.
+* **Core**: The central orchestration layer responsible for coordinating and managing the lifecycle of all routers within the service, including starting, stopping, and monitoring them.
 * **Backend**: The internal subsystem responsible for managing services and connections. It supports runtime reloading and request dispatching.
 * **Router**: A listener bound to a specific address and port. It matches incoming requests to configured paths and routes them accordingly.
 * **Path**: A routing definition within a router that matches on URL and HTTP method. Each path delegates request handling to one or more targets.
@@ -93,7 +94,7 @@ If no target matches, the request is rejected with a `400 Bad Request`.
 
 ### Configuration
 
-A full break-down of the configuration file structure can be found in the [template.conf][config-href] file.
+A full break-down of the configuration file structure can be found in the [configs/_template.conf][config-href] file.
 
 ### Development
 
