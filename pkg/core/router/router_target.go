@@ -12,7 +12,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/wadawe/request-router/pkg/backend"
 	"github.com/wadawe/request-router/pkg/config"
-	"github.com/wadawe/request-router/pkg/service/context"
+	"github.com/wadawe/request-router/pkg/core/context"
 	"github.com/wadawe/request-router/pkg/utils"
 )
 
