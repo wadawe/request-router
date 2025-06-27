@@ -5,7 +5,6 @@ package router
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"regexp"
 	"strings"
@@ -24,7 +23,6 @@ type TargetFilter struct {
 }
 
 func NewTargetFilter(cfg *config.FilterConfig, logger *zerolog.Logger) (*TargetFilter, error) {
-	log.Printf("Creating new target filter (%s): %s", cfg.Source, cfg.MatchKey)
 	tf := &TargetFilter{
 		Key:          cfg.MatchKey,
 		ParentLogger: logger,

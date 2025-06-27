@@ -7,30 +7,23 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/rs/zerolog"
-
 	"github.com/wadawe/request-router/pkg/config"
 )
 
-type LogHandler struct {
-	Name string
-	File *os.File
-}
-
 var (
-	logHandlers []*LogHandler
+	logFiles = make(map[string]*os.File) // map of filename => log file
 )
 
 // Setup the log directory if defined
 func SetupLogDirectory(logDirFlag *string) {
 	var err error
 	var logDir string
-	if len(*logDirFlag) > 0 { // Log directory specified in command line
+	if len(*logDirFlag) > 0 {
 		logDir = *logDirFlag
-	} else { // Use current working directory
+	} else {
 		logDir, err = os.Getwd()
 		if err != nil {
 			log.Fatal(err)
@@ -39,74 +32,56 @@ func SetupLogDirectory(logDirFlag *string) {
 	if _, err := os.Stat(logDir); os.IsNotExist(err) {
 		err = os.Mkdir(logDir, 0755)
 		if err != nil {
-			log.Fatalf("Error on log directory creation (%s): %s", logDir, err)
+			log.Fatalf("Error creating log directory (%s): %s", logDir, err)
 		}
 	}
 	log.Printf("Using log directory: %s", logDir)
 	config.SetLogDir(logDir)
 }
 
-// Create a new logger
-func NewFileLogger(logFile string, logLevel string) *zerolog.Logger {
+// Create or reuse a logger
+func NewFileLogger(logFile string) *zerolog.Logger {
 	var loggerOutput *os.File
 
-	// Check if log file is provided
-	if len(logFile) > 0 {
+	if logFile != "" {
+
+		// Handle relative/absolute paths
 		filename := logFile
 		if !filepath.IsAbs(logFile) {
-			filename = filepath.Join(config.GetLogDir(), filename)
-		}
-		file, err := os.OpenFile(filename, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0644)
-		if err != nil {
-			log.Fatalf("Error on log file open (%s): %s", filename, err)
+			filename = filepath.Join(config.GetLogDir(), logFile)
 		}
 
-		// Store the logger
-		// We need to close this file when the program exits
-		loggerOutput = file
-		logHandlers = append(logHandlers, &LogHandler{Name: filename, File: loggerOutput})
+		// Check if file already opened
+		if file, exists := logFiles[filename]; exists {
+			loggerOutput = file
+		} else {
+			file, err := os.OpenFile(filename, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0644)
+			if err != nil {
+				log.Fatalf("Error opening log file (%s): %s", filename, err)
+			}
+			logFiles[filename] = file
+			loggerOutput = file
+		}
 
 	} else {
-		// If no log file is provided, set the output to stderr
-		// We don't need to store this in the logHandlers list as we don't need to close it
-		loggerOutput = os.Stderr
+		loggerOutput = os.Stderr // No need to close stderr
 	}
 
-	// Create the log writer
-	writer := zerolog.ConsoleWriter{Out: loggerOutput, TimeFormat: time.RFC3339, NoColor: true}
+	writer := zerolog.ConsoleWriter{
+		Out:        loggerOutput,
+		TimeFormat: time.RFC3339,
+		NoColor:    true,
+	}
 	zerolog.TimeFieldFormat = time.RFC3339
-	fw := zerolog.New(writer).With().Timestamp().Logger()
-	if logLevel == "" {
-		logLevel = "info" // Default log level if not specified
-	}
-	return setLoggerLevel(&fw, logLevel)
+	fw := zerolog.New(writer).With().Timestamp().Logger().Level(zerolog.InfoLevel)
+	return &fw
 }
 
-// Set the logger level for a logger
-func setLoggerLevel(logger *zerolog.Logger, level string) *zerolog.Logger {
-	var l zerolog.Logger
-	switch strings.ToLower(level) {
-	case "panic":
-		l = logger.Level(zerolog.PanicLevel)
-	case "fatal":
-		l = logger.Level(zerolog.FatalLevel)
-	case "error":
-		l = logger.Level(zerolog.ErrorLevel)
-	case "warn", "warning":
-		l = logger.Level(zerolog.WarnLevel)
-	case "info", "informational":
-		l = logger.Level(zerolog.InfoLevel)
-	case "debug":
-		l = logger.Level(zerolog.DebugLevel)
-	default:
-		l = logger.Level(zerolog.InfoLevel)
-	}
-	return &l
-}
-
-// Close all log handlers
-func CloseLogHandlers() {
-	for _, handler := range logHandlers {
-		handler.File.Close()
+// Close all log files
+func CloseLogFiles() {
+	for _, file := range logFiles {
+		if file != nil {
+			file.Close()
+		}
 	}
 }

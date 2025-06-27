@@ -5,7 +5,6 @@ package router
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 
 	"github.com/wadawe/request-router/pkg/config"
@@ -21,7 +20,6 @@ type RouterPath struct {
 
 // Create a new RouterPath
 func NewRouterPath(cfg *config.PathConfig, method string, endpoint string) (*RouterPath, error) {
-	log.Printf("Creating new router path: %s", cfg.Name)
 
 	// Create PathTarget handlers for each target in the configuration
 	targets := make([]*PathTarget, 0, len(cfg.Targets))
