@@ -10,12 +10,12 @@ type ConfigFile struct {
 }
 
 type ConnectionConfig struct {
-	Name       string `toml:"name"`        // Name of the connection
-	Location   string `toml:"location"`    // URL of the connection
-	PingURI    string `toml:"ping"`        // URI on the connection for health checks
-	Timeout    string `toml:"timeout"`     // Request timeout for the connection
-	ClientCert string `toml:"client-cert"` // Client certificate for the connection
-	ClientKey  string `toml:"client-key"`  // Client key for the connection
+	Name         string `toml:"name"`          // Name of the connection
+	Location     string `toml:"location"`      // URL of the connection
+	PingEndpoint string `toml:"ping-endpoint"` // Endpoint for the connection health checks
+	Timeout      string `toml:"timeout"`       // Request timeout for the connection
+	ClientCert   string `toml:"client-cert"`   // Client certificate for the connection
+	ClientKey    string `toml:"client-key"`    // Client key for the connection
 }
 
 type ServiceConfig struct {
@@ -30,24 +30,24 @@ type RouterConfig struct {
 }
 
 type PathConfig struct {
-	Name         string          `toml:"name"`          // Name of the path
-	Methods      []string        `toml:"methods"`       // List of HTTP methods to accept
-	IncomingPath string          `toml:"incoming-path"` // URI incoming endpoint of the path
-	Targets      []*TargetConfig `toml:"target"`        // List of targets for the path
+	Name             string          `toml:"name"`              // Name of the path
+	Methods          []string        `toml:"methods"`           // List of HTTP methods to accept
+	IncomingEndpoint string          `toml:"incoming-endpoint"` // Incoming endpoint of the path
+	Targets          []*TargetConfig `toml:"target"`            // List of targets for the path
 }
 
 type TargetConfig struct {
-	Name            string          `toml:"name"`             // Name of the target
-	TargetService   string          `toml:"service"`          // Destination service name
-	TargetReplica   string          `toml:"replica"`          // Destination replica name
-	UpstreamPath    string          `toml:"upstream-path"`    // URI upstream override of the path
-	RequestAction   RequestAction   `toml:"request-action"`   // Request action of the target
-	RequestStrategy RequestStrategy `toml:"request-strategy"` // Request strategy of the target
-	FilterStrategy  FilterStrategy  `toml:"filter-strategy"`  // Filter strategy of the target
-	Headers         []*HeaderConfig `toml:"header"`           // List of headers to set for the target
-	Filters         []*FilterConfig `toml:"filter"`           // List of filters to apply to the target
-	LogFile         string          `toml:"log-file"`         // Log file for the target
-	LogLevel        string          `toml:"log-level"`        // Log level for the target
+	Name             string          `toml:"name"`              // Name of the target
+	TargetService    string          `toml:"service"`           // Destination service name
+	TargetReplica    string          `toml:"replica"`           // Destination replica name
+	UpstreamEndpoint string          `toml:"upstream-endpoint"` // Upstream endpoint override of the path
+	RequestAction    RequestAction   `toml:"request-action"`    // Request action of the target
+	RequestStrategy  RequestStrategy `toml:"request-strategy"`  // Request strategy of the target
+	FilterStrategy   FilterStrategy  `toml:"filter-strategy"`   // Filter strategy of the target
+	Filters          []*FilterConfig `toml:"request-filter"`    // List of filters to apply to the target
+	Headers          []*HeaderConfig `toml:"header-override"`   // List of header overrides to set for the target
+	LogFile          string          `toml:"log-file"`          // Log file for the target
+	LogLevel         string          `toml:"log-level"`         // Log level for the target
 }
 
 type FilterConfig struct {

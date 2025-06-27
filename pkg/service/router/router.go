@@ -33,22 +33,22 @@ func NewServiceRouter(cfg *config.RouterConfig) (*ServiceRouter, error) {
 
 	// Initialise Paths map
 	for _, pCfg := range cfg.Paths {
-		if sr.Paths[pCfg.IncomingPath] == nil {
-			sr.Paths[pCfg.IncomingPath] = make(map[string]*RouterPath)
+		if sr.Paths[pCfg.IncomingEndpoint] == nil {
+			sr.Paths[pCfg.IncomingEndpoint] = make(map[string]*RouterPath)
 		}
 		for _, method := range pCfg.Methods {
 			method = strings.ToUpper(method) // Ensure method is uppercase
 			if method == http.MethodOptions {
 				continue // Skip OPTIONS method as it is handled separately
 			}
-			if _, exists := sr.Paths[pCfg.IncomingPath][method]; exists {
-				return nil, fmt.Errorf("error on path (%s): duplicate method (%s) for endpoint: %s", pCfg.Name, method, pCfg.IncomingPath)
+			if _, exists := sr.Paths[pCfg.IncomingEndpoint][method]; exists {
+				return nil, fmt.Errorf("error on path (%s): duplicate method (%s) for endpoint: %s", pCfg.Name, method, pCfg.IncomingEndpoint)
 			}
-			rp, err := NewRouterPath(pCfg, method, pCfg.IncomingPath)
+			rp, err := NewRouterPath(pCfg, method, pCfg.IncomingEndpoint)
 			if err != nil {
 				return nil, err
 			}
-			sr.Paths[pCfg.IncomingPath][method] = rp
+			sr.Paths[pCfg.IncomingEndpoint][method] = rp
 		}
 	}
 

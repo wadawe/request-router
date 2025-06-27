@@ -11,66 +11,91 @@ import (
 )
 
 // Detect duplicate names in the configuration
-func DetectDuplicate(name string, seen map[string]bool, label string) error {
+func DetectDuplicate(name string, seen map[string]bool) bool {
 	if seen[name] {
-		return fmt.Errorf("duplicate %s found: %s", label, name)
+		return true
 	}
 	seen[name] = true
-	return nil
+	return false
 }
 
-// Validate the configuration of the router
-func (cfg *ConfigFile) ValidateConfig() error {
+// Apply defaults to a config file
+func (cfg *ConfigFile) ApplyDefaults() {
+	for _, connCfg := range cfg.ConnectionConfigs {
+		connCfg.ApplyDefaults()
+	}
+	for _, serviceCfg := range cfg.ServiceConfigs {
+		serviceCfg.ApplyDefaults()
+	}
+	for _, routerCfg := range cfg.RouterConfigs {
+		routerCfg.ApplyDefaults()
+		for _, pathCfg := range routerCfg.Paths {
+			pathCfg.ApplyDefaults()
+			for _, targetCfg := range pathCfg.Targets {
+				targetCfg.ApplyDefaults(pathCfg)
+				for _, filterCfg := range targetCfg.Filters {
+					filterCfg.ApplyDefaults()
+				}
+				for _, headerCfg := range targetCfg.Headers {
+					headerCfg.ApplyDefaults()
+				}
+			}
+		}
+	}
+}
+
+// Validate the configuration of a config file
+func (cfg *ConfigFile) Validate() error {
+	entityNames := make(map[string]bool)
+	routerBinds := make(map[string]bool)
 
 	// Validate all connection configs
-	connectionNames := make(map[string]bool)
+	if len(cfg.ConnectionConfigs) < 1 {
+		return fmt.Errorf("error on connections: config should have '>=1' connections")
+	}
 	for _, connCfg := range cfg.ConnectionConfigs {
-		if err := DetectDuplicate(connCfg.Name, connectionNames, "connection"); err != nil {
-			return err
+		if DetectDuplicate(connCfg.Name, entityNames) {
+			return fmt.Errorf("error on connection: duplicate name found (%s)", connCfg.Name)
 		}
-		err := connCfg.validateConnectionConfig()
+		err := connCfg.Validate()
 		if err != nil {
 			return err
 		}
 	}
 
 	// Validate all service configs
-	serviceNames := make(map[string]bool)
 	if len(cfg.ServiceConfigs) < 1 {
 		return fmt.Errorf("error on services: config should have '>=1' services")
 	}
 	for _, serviceCfg := range cfg.ServiceConfigs {
-		if err := DetectDuplicate(serviceCfg.Name, serviceNames, "service"); err != nil {
-			return err
+		if DetectDuplicate(serviceCfg.Name, entityNames) {
+			return fmt.Errorf("error on service: duplicate name found (%s)", serviceCfg.Name)
 		}
-		err := serviceCfg.validateServiceConfig(cfg)
+		err := serviceCfg.Validate(cfg)
 		if err != nil {
 			return err
 		}
 	}
 
 	// Validate all router configs
-	routerNames := make(map[string]bool)
-	pathNames := make(map[string]bool)
-	targetNames := make(map[string]bool)
 	if len(cfg.RouterConfigs) < 1 {
 		return fmt.Errorf("error on routers: config should have '>=1' routers")
 	}
 	for _, routerCfg := range cfg.RouterConfigs {
-		if err := DetectDuplicate(routerCfg.BindAddress, routerNames, "router"); err != nil {
-			return err
+		if DetectDuplicate(routerCfg.BindAddress, routerBinds) {
+			return fmt.Errorf("error on router: duplicate bind address found (%s)", routerCfg.BindAddress)
 		}
 		for _, pathCfg := range routerCfg.Paths {
-			if err := DetectDuplicate(pathCfg.Name, pathNames, "path"); err != nil {
-				return err
+			if DetectDuplicate(pathCfg.Name, entityNames) {
+				return fmt.Errorf("error on path: duplicate name found (%s)", pathCfg.Name)
 			}
 			for _, targetCfg := range pathCfg.Targets {
-				if err := DetectDuplicate(targetCfg.Name, targetNames, "target"); err != nil {
-					return err
+				if DetectDuplicate(targetCfg.Name, entityNames) {
+					return fmt.Errorf("error on target: duplicate name found (%s)", targetCfg.Name)
 				}
 			}
 		}
-		err := routerCfg.validateRouterConfig(cfg)
+		err := routerCfg.Validate(cfg)
 		if err != nil {
 			return err
 		}
@@ -80,58 +105,72 @@ func (cfg *ConfigFile) ValidateConfig() error {
 	return nil
 }
 
-// Validate the configuration of an Connection
-func (connCfg *ConnectionConfig) validateConnectionConfig() error {
+// Apply defaults to a connection config
+func (cfg *ConnectionConfig) ApplyDefaults() {
+	if cfg.PingEndpoint == "" {
+		cfg.PingEndpoint = "/ping"
+	}
+	if cfg.Timeout == "" {
+		cfg.Timeout = "30s"
+	}
+}
+
+// Validate the configuration of a connection
+func (cfg *ConnectionConfig) Validate() error {
+	var err error
 
 	// Validate connection name
-	if connCfg.Name == "" {
+	if cfg.Name == "" {
 		return fmt.Errorf("error on connection: name is empty")
 	}
 
 	// Validate connection location
-	if connCfg.Location == "" {
-		return fmt.Errorf("error on connection (%s): location is empty", connCfg.Name)
+	if cfg.Location == "" {
+		return fmt.Errorf("error on connection (%s): location is empty", cfg.Name)
 	}
-	_, err := url.Parse(connCfg.Location)
+	_, err = url.Parse(cfg.Location)
 	if err != nil {
-		return fmt.Errorf("error on connection (%s): location is invalid (%s): %s", connCfg.Name, connCfg.Location, err)
+		return fmt.Errorf("error on connection (%s): location is invalid (%s): %s", cfg.Name, cfg.Location, err)
 	}
 
 	// Validate connection timeout
-	if connCfg.Timeout != "" {
-		_, err := time.ParseDuration(connCfg.Timeout)
-		if err != nil {
-			return fmt.Errorf("error on connection (%s): timeout is invalid (%s): %s", connCfg.Name, connCfg.Timeout, err)
-		}
+	_, err = time.ParseDuration(cfg.Timeout)
+	if err != nil {
+		return fmt.Errorf("error on connection (%s): timeout is invalid (%s): %s", cfg.Name, cfg.Timeout, err)
 	}
 
 	// Validate client certificate and key
-	if connCfg.ClientCert != "" && connCfg.ClientKey == "" {
-		return fmt.Errorf("error on connection (%s): client cert is set without client key", connCfg.Name)
+	if cfg.ClientCert != "" && cfg.ClientKey == "" {
+		return fmt.Errorf("error on connection (%s): client cert is set without client key", cfg.Name)
 	}
-	if connCfg.ClientCert == "" && connCfg.ClientKey != "" {
-		return fmt.Errorf("error on connection (%s): client key is set without client cert", connCfg.Name)
+	if cfg.ClientCert == "" && cfg.ClientKey != "" {
+		return fmt.Errorf("error on connection (%s): client key is set without client cert", cfg.Name)
 	}
 
 	// Config is valid
 	return nil
 }
 
-// Validate the configuration of a Service
-func (serviceCfg *ServiceConfig) validateServiceConfig(cfg *ConfigFile) error {
+// Apply defaults to a service config
+func (cfg *ServiceConfig) ApplyDefaults() {
+	// ...
+}
+
+// Validate the configuration of a service
+func (cfg *ServiceConfig) Validate(root *ConfigFile) error {
 
 	// Validate service name
-	if serviceCfg.Name == "" {
+	if cfg.Name == "" {
 		return fmt.Errorf("error on service: name is empty")
 	}
 
 	// Validate service members
-	if len(serviceCfg.Members) < 1 {
-		return fmt.Errorf("error on service (%s): should have '>=1' members", serviceCfg.Name)
+	if len(cfg.Members) < 1 {
+		return fmt.Errorf("error on service (%s): should have '>=1' members", cfg.Name)
 	}
-	for _, member := range serviceCfg.Members {
-		if cfg.GetConnectionConfig(member) == nil {
-			return fmt.Errorf("error on service (%s) members: unknown connection (%s)", serviceCfg.Name, member)
+	for _, member := range cfg.Members {
+		if root.GetConnectionConfig(member) == nil {
+			return fmt.Errorf("error on service (%s) members: unknown connection (%s)", cfg.Name, member)
 		}
 	}
 
@@ -139,34 +178,37 @@ func (serviceCfg *ServiceConfig) validateServiceConfig(cfg *ConfigFile) error {
 	return nil
 }
 
-// Validate the configuration of a Router
-func (routerCfg *RouterConfig) validateRouterConfig(config *ConfigFile) error {
+// Apply defaults to a router config
+func (cfg *RouterConfig) ApplyDefaults() {
+	// ...
+}
+
+// Validate the configuration of a router
+func (cfg *RouterConfig) Validate(root *ConfigFile) error {
+	endpoints := make(map[string]map[string]bool)
 
 	// Validate bind address
-	if routerCfg.BindAddress == "" {
-		return fmt.Errorf("error on router (%s): bind address is empty", routerCfg.BindAddress)
+	if cfg.BindAddress == "" {
+		return fmt.Errorf("error on router: bind address is empty")
 	}
 
 	// Validate router paths
-	endpoints := make(map[string]map[string]bool)
-	if len(routerCfg.Paths) < 1 {
-		return fmt.Errorf("error on router: config should have '>=1' paths")
+	if len(cfg.Paths) < 1 {
+		return fmt.Errorf("error on router (%s): config should have '>=1' paths", cfg.BindAddress)
 	}
-	for _, pathCfg := range routerCfg.Paths {
-		methods, ok := endpoints[pathCfg.IncomingPath]
+	for _, pathCfg := range cfg.Paths {
+		_, ok := endpoints[pathCfg.IncomingEndpoint]
 		if !ok {
-			methods = map[string]bool{}
-			endpoints[pathCfg.IncomingPath] = methods
+			endpoints[pathCfg.IncomingEndpoint] = map[string]bool{}
 		}
 		for _, method := range pathCfg.Methods {
-			if endpoints[pathCfg.IncomingPath][method] {
-				return fmt.Errorf("duplicate endpoint+method found: %s %s", method, pathCfg.IncomingPath)
+			if DetectDuplicate(method, endpoints[pathCfg.IncomingEndpoint]) {
+				return fmt.Errorf("error on path (%s): duplicate method (%s) found for endpoint (%s)", pathCfg.Name, method, pathCfg.IncomingEndpoint)
 			}
-			endpoints[pathCfg.IncomingPath][method] = true
 		}
 
 		// Validate the config
-		err := pathCfg.validatePathConfig(config)
+		err := pathCfg.Validate(root)
 		if err != nil {
 			return err
 		}
@@ -176,30 +218,35 @@ func (routerCfg *RouterConfig) validateRouterConfig(config *ConfigFile) error {
 	return nil
 }
 
-// Validate the configuration of a Path
-func (pathCfg *PathConfig) validatePathConfig(config *ConfigFile) error {
+// Apply defaults to a path config
+func (cfg *PathConfig) ApplyDefaults() {
+	// ...
+}
+
+// Validate the configuration of a path
+func (cfg *PathConfig) Validate(root *ConfigFile) error {
 
 	// Validate path name
-	if pathCfg.Name == "" {
+	if cfg.Name == "" {
 		return fmt.Errorf("error on path: name is empty")
 	}
 
 	// Validate path methods
-	if len(pathCfg.Methods) < 1 {
-		return fmt.Errorf("error on path (%s): config should have '>=1' methods", pathCfg.IncomingPath)
+	if len(cfg.Methods) < 1 {
+		return fmt.Errorf("error on path (%s): config should have '>=1' methods", cfg.IncomingEndpoint)
 	}
 
 	// Validate path endpoint
-	if pathCfg.IncomingPath == "" {
-		return fmt.Errorf("error on path (%s): endpoint is empty", pathCfg.IncomingPath)
+	if cfg.IncomingEndpoint == "" {
+		return fmt.Errorf("error on path (%s): endpoint is empty", cfg.IncomingEndpoint)
 	}
 
 	// Validate path targets
-	if len(pathCfg.Targets) < 1 {
-		return fmt.Errorf("error on path (%s): should have '>=1' targets", pathCfg.IncomingPath)
+	if len(cfg.Targets) < 1 {
+		return fmt.Errorf("error on path (%s): should have '>=1' targets", cfg.IncomingEndpoint)
 	}
-	for _, targetCfg := range pathCfg.Targets {
-		err := targetCfg.validateTargetConfig(config, pathCfg.IncomingPath)
+	for _, targetCfg := range cfg.Targets {
+		err := targetCfg.Validate(root, cfg.IncomingEndpoint)
 		if err != nil {
 			return err
 		}
@@ -209,58 +256,71 @@ func (pathCfg *PathConfig) validatePathConfig(config *ConfigFile) error {
 	return nil
 }
 
-// Validate the configuration of a Target
-func (targetCfg *TargetConfig) validateTargetConfig(cfg *ConfigFile, pathName string) error {
+// Apply defaults to a target config
+func (cfg *TargetConfig) ApplyDefaults(path *PathConfig) {
+	if cfg.UpstreamEndpoint == "" {
+		cfg.UpstreamEndpoint = path.IncomingEndpoint
+	}
+	if cfg.RequestAction == "" {
+		cfg.RequestAction = RequestAction_Forward
+	}
+	if cfg.RequestStrategy == "" {
+		cfg.RequestStrategy = RequestStrategy_Highest
+	}
+	if cfg.FilterStrategy == "" {
+		cfg.FilterStrategy = FilterStrategy_Any // Doesn't matter, because we clear the filters below
+		cfg.Filters = []*FilterConfig{}
+	}
+}
+
+// Validate the configuration of a target
+func (cfg *TargetConfig) Validate(root *ConfigFile, pathName string) error {
 
 	// Validate target name
-	if targetCfg.Name == "" {
+	if cfg.Name == "" {
 		return fmt.Errorf("error on path (%s) target: name is empty", pathName)
 	}
 
 	// Validate target service
-	serviceCfg := cfg.GetServiceConfig(targetCfg.TargetService)
+	serviceCfg := root.GetServiceConfig(cfg.TargetService)
 	if serviceCfg == nil {
-		return fmt.Errorf("error on path (%s) target (%s): unknown service (%s)", pathName, targetCfg.Name, targetCfg.TargetService)
+		return fmt.Errorf("error on target (%s): unknown service (%s)", cfg.Name, cfg.TargetService)
 	}
 
 	// Validate target replica
-	if targetCfg.TargetReplica != "" {
-		replicaCfg := cfg.GetServiceConfig(targetCfg.TargetReplica)
+	if cfg.TargetReplica != "" {
+		replicaCfg := root.GetServiceConfig(cfg.TargetReplica)
 		if replicaCfg == nil {
-			return fmt.Errorf("error on path (%s) target (%s): unknown replica (%s)", pathName, targetCfg.Name, targetCfg.TargetReplica)
+			return fmt.Errorf("error on target (%s): unknown replica (%s)", cfg.Name, cfg.TargetReplica)
 		}
 	}
 
 	// Validate target status
-	if targetCfg.RequestAction == "" {
-		targetCfg.RequestAction = RequestAction_Forward // Default action is to forward requests
-	}
-	if !isRequestAction(targetCfg.RequestAction) {
-		return fmt.Errorf("error on path (%s) target (%s): unknown request action (%s)", pathName, targetCfg.Name, targetCfg.RequestAction)
+	if !isRequestAction(cfg.RequestAction) {
+		return fmt.Errorf("error on target (%s): unknown request action (%s)", cfg.Name, cfg.RequestAction)
 	}
 
 	// Validate target request strategy
-	if !isRequestStrategy(targetCfg.RequestStrategy) {
-		return fmt.Errorf("error on path (%s) target (%s): unknown request strategy (%s)", pathName, targetCfg.Name, targetCfg.RequestStrategy)
+	if !isRequestStrategy(cfg.RequestStrategy) {
+		return fmt.Errorf("error on target (%s): unknown request strategy (%s)", cfg.Name, cfg.RequestStrategy)
 	}
 
 	// Validate target filter strategy
-	if !isFilterStrategy(targetCfg.FilterStrategy) {
-		return fmt.Errorf("error on path (%s) target (%s): unknown filter strategy (%s)", pathName, targetCfg.Name, targetCfg.FilterStrategy)
+	if !isFilterStrategy(cfg.FilterStrategy) {
+		return fmt.Errorf("error on target (%s): unknown filter strategy (%s)", cfg.Name, cfg.FilterStrategy)
 	}
 
 	// Validate set headers
-	for _, headerCfg := range targetCfg.Headers {
-		if headerCfg.Key == "" {
-			return fmt.Errorf("error on path (%s) target (%s) headers: header key is empty", pathName, targetCfg.Name)
+	for _, headerCfg := range cfg.Headers {
+		err := headerCfg.Validate(cfg)
+		if err != nil {
+			return err
 		}
-		// Header values can be empty, so we don't validate them
-		// Empty header values will delete the header from the request
 	}
 
 	// Validate target filters
-	for _, filterCfg := range targetCfg.Filters {
-		err := filterCfg.validateFilterConfig(pathName, targetCfg.TargetService)
+	for _, filterCfg := range cfg.Filters {
+		err := filterCfg.Validate(cfg)
 		if err != nil {
 			return err
 		}
@@ -270,26 +330,46 @@ func (targetCfg *TargetConfig) validateTargetConfig(cfg *ConfigFile, pathName st
 	return nil
 }
 
-// Validate the configuration of a RouterFilter
-func (filterCfg *FilterConfig) validateFilterConfig(pathName string, targetName string) error {
+// Apply defaults to a filter config
+func (cfg *FilterConfig) ApplyDefaults() {
+	// ...
+}
+
+// Validate the configuration of a filter
+func (cfg *FilterConfig) Validate(target *TargetConfig) error {
 
 	// Validate filter context
-	if !isFilterSource(filterCfg.Source) {
-		return fmt.Errorf("error on path (%s) target (%s) filter: unknown source (%s)", pathName, targetName, filterCfg.Source)
+	if !isFilterSource(cfg.Source) {
+		return fmt.Errorf("error on target (%s) filter: unknown source (%s)", target.Name, cfg.Source)
 	}
 
 	// Validate filter key
-	if filterCfg.MatchKey == "" {
-		return fmt.Errorf("error on path (%s) target (%s) filter: match key is empty", pathName, targetName)
+	if cfg.MatchKey == "" {
+		return fmt.Errorf("error on target (%s) filter: match key is empty", target.Name)
 	}
 
 	// Validate filter regex
-	_, err := regexp.Compile(filterCfg.MatchRegex)
+	_, err := regexp.Compile(cfg.MatchRegex)
 	if err != nil {
-		return fmt.Errorf("error on path (%s) target (%s) filter: match (%s) is invalid: %s", pathName, targetName, filterCfg.MatchRegex, err)
+		return fmt.Errorf("error on target (%s) filter: match (%s) is invalid: %s", target.Name, cfg.MatchRegex, err)
 	}
 
 	// Config is valid
+	return nil
+}
+
+// Apply defaults to a header config
+func (cfg *HeaderConfig) ApplyDefaults() {
+	// ...
+}
+
+// Validate the configuration of a header
+func (cfg *HeaderConfig) Validate(target *TargetConfig) error {
+	// Header values can be empty, so we don't validate them
+	// Empty header values will delete the header from the request
+	if cfg.Key == "" {
+		return fmt.Errorf("error on target (%s) headers: header key is empty", target.Name)
+	}
 	return nil
 }
 
@@ -308,19 +388,6 @@ func isRequestAction(action RequestAction) bool {
 	return false
 }
 
-// Verify if a FilterStrategy is valid
-func isFilterStrategy(strategy FilterStrategy) bool {
-	var validStrategies = map[FilterStrategy]struct{}{
-		FilterStrategy_All: {},
-		FilterStrategy_Any: {},
-		// Add more valid strategies here as needed
-	}
-	if _, exists := validStrategies[strategy]; exists {
-		return true
-	}
-	return false
-}
-
 // Verify if a RequestStrategy is valid
 func isRequestStrategy(strategy RequestStrategy) bool {
 	var validStrategies = map[RequestStrategy]struct{}{
@@ -329,6 +396,19 @@ func isRequestStrategy(strategy RequestStrategy) bool {
 		RequestStrategy_Sequence: {},
 		RequestStrategy_Success:  {},
 		RequestStrategy_Highest:  {},
+		// Add more valid strategies here as needed
+	}
+	if _, exists := validStrategies[strategy]; exists {
+		return true
+	}
+	return false
+}
+
+// Verify if a FilterStrategy is valid
+func isFilterStrategy(strategy FilterStrategy) bool {
+	var validStrategies = map[FilterStrategy]struct{}{
+		FilterStrategy_All: {},
+		FilterStrategy_Any: {},
 		// Add more valid strategies here as needed
 	}
 	if _, exists := validStrategies[strategy]; exists {
