@@ -64,7 +64,7 @@ func NewFileLogger(logFile string) *zerolog.Logger {
 		}
 
 	} else {
-		loggerOutput = os.NewFile(0, os.DevNull) // Use /dev/null if no log file is specified
+		loggerOutput = os.Stderr // No need to close stderr
 	}
 
 	writer := zerolog.ConsoleWriter{
