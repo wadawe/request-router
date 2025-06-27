@@ -116,7 +116,7 @@ func LogRequestContext(request *http.Request, logger *zerolog.Logger) {
 			Str("response-length", requestContext.Data[ResponseLengthDataKey]).
 			Str("response-time", requestContext.EndTime.Sub(requestContext.StartTime).String()).
 			Str("trace", requestContext.Trace.String()).
-			Int("status", requestContext.StatusCode).
+			Int("status-code", requestContext.StatusCode).
 			Str("source", requestContext.Data[SourceDataKey]).
 			Str("user-agent", request.UserAgent()).
 			Msg("Request:")

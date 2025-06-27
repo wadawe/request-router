@@ -73,7 +73,7 @@ func main() {
 				log.Printf("Received signal (%q): stopping...", sig)
 				stopping = true
 				routerManager.Stop()
-				utils.CloseLogHandlers()
+				utils.CloseLogFiles()
 				os.Exit(0)
 
 			// Handle reload signal

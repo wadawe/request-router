@@ -5,7 +5,6 @@ package router
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"strings"
 
@@ -24,12 +23,11 @@ type ServiceRouter struct {
 
 // Create a new ServiceRouter
 func NewServiceRouter(cfg *config.RouterConfig) (*ServiceRouter, error) {
-	log.Printf("Creating new service router: %s", cfg.BindAddress)
 	sr := &ServiceRouter{
 		BindAddress: cfg.BindAddress,
 		Paths:       make(map[string]map[string]*RouterPath),
 	}
-	sr.AccessLogger = utils.NewFileLogger(cfg.AccessLogFile, "debug")
+	sr.AccessLogger = utils.NewFileLogger(cfg.AccessLogFile)
 
 	// Initialise Paths map
 	for _, pCfg := range cfg.Paths {

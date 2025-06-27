@@ -14,8 +14,7 @@ This release is a review and rewrite of [`bbc/relay-for-influxdb`](https://githu
 - Added request replication to replica services without affecting client responses.
 - Added support for dynamic backend config reloads via `SIGHUP`.
 - Added TOML-based configuration for defining routers, paths, targets, services, and connections.
-- Added support for structured logging with configurable log levels.
-- Added per-target logging to separate files.
+- Added support for structured logging across multiple components.
 - Added request/response body handling helpers for safe reading and closing.
 - Added internal request context tracking with trace metadata and status codes.
 - Added backend layer for managing services and their connections at runtime.

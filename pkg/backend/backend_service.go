@@ -5,7 +5,6 @@ package backend
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"sync"
 
@@ -19,7 +18,6 @@ type BackendService struct {
 
 // Create a new service handler
 func NewBackendService(cfg *config.ServiceConfig) *BackendService {
-	log.Printf("Creating new backend service: %s", cfg.Name)
 	return &BackendService{
 		Name:    cfg.Name,
 		Members: cfg.Members,

@@ -47,7 +47,6 @@ type TargetConfig struct {
 	Filters          []*FilterConfig `toml:"request-filter"`    // List of filters to apply to the target
 	Headers          []*HeaderConfig `toml:"header-override"`   // List of header overrides to set for the target
 	LogFile          string          `toml:"log-file"`          // Log file for the target
-	LogLevel         string          `toml:"log-level"`         // Log level for the target
 }
 
 type FilterConfig struct {

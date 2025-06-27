@@ -5,7 +5,6 @@ package router
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"sync"
 
@@ -37,7 +36,6 @@ type PathTarget struct {
 
 // Create a new PathTarget
 func NewPathTarget(cfg *config.TargetConfig, pathName string, pathEndpoint string) (*PathTarget, error) {
-	log.Printf("Creating new path target: %s", cfg.Name)
 	pt := &PathTarget{
 		Name:     cfg.Name,
 		Endpoint: pathEndpoint,
@@ -68,7 +66,7 @@ func NewPathTarget(cfg *config.TargetConfig, pathName string, pathEndpoint strin
 	} else {
 		filename = cfg.Name + ".log"
 	}
-	pt.TargetLogger = utils.NewFileLogger(filename, cfg.LogLevel)
+	pt.TargetLogger = utils.NewFileLogger(filename)
 
 	// Create TargetFilter handlers for each filter in the configuration
 	for _, fCfg := range cfg.Filters {
@@ -182,7 +180,7 @@ func (pt *PathTarget) UseStrategy_Ping(w http.ResponseWriter, r *http.Request, b
 	// Get a connection from the backend
 	conn, err := service.GetFastestHealthyConnection()
 	if err != nil {
-		pt.LogError("error on connection", r, err, service.Name, nil, 0)
+		pt.LogError("error on connection", err, service.Name, nil, 0)
 		return nil, err
 	}
 	context.AppendToContextTrace(r, "connection", conn.Name)
@@ -190,11 +188,11 @@ func (pt *PathTarget) UseStrategy_Ping(w http.ResponseWriter, r *http.Request, b
 	// Send the request to the connection
 	response, err := conn.SendRequest(r.Method, r.URL.Path, r.Header, pt.Headers, r.URL.Query(), body)
 	if err != nil {
-		pt.LogError("error on request", r, err, service.Name, nil, 0)
+		pt.LogError("error on request", err, service.Name, nil, 0)
 		return nil, err
 	}
 	if response.StatusCode/100 != 2 {
-		pt.LogError("error on response", r, nil, service.Name, response.Body, response.StatusCode)
+		pt.LogError("error on response", nil, service.Name, response.Body, response.StatusCode)
 	}
 
 	// Return the response
@@ -214,11 +212,11 @@ func (pt *PathTarget) UseStrategy_Sequence(w http.ResponseWriter, r *http.Reques
 	for _, conn := range connections {
 		response, err := conn.SendRequest(r.Method, r.URL.Path, r.Header, pt.Headers, r.URL.Query(), body)
 		if err != nil {
-			pt.LogError("error on request", r, err, service.Name, nil, 0)
+			pt.LogError("error on request", err, service.Name, nil, 0)
 			continue
 		}
 		if response.StatusCode/100 != 2 {
-			pt.LogError("error on response", r, nil, service.Name, response.Body, response.StatusCode)
+			pt.LogError("error on response", nil, service.Name, response.Body, response.StatusCode)
 		}
 
 		// Add the response to the responses list
@@ -276,11 +274,11 @@ func (pt *PathTarget) UseStrategy_Primary(w http.ResponseWriter, r *http.Request
 			defer wg.Done()
 			response, err := conn.SendRequest(r.Method, r.URL.Path, r.Header, pt.Headers, r.URL.Query(), body)
 			if err != nil {
-				pt.LogError("error on request", r, err, service.Name, nil, 0)
+				pt.LogError("error on request", err, service.Name, nil, 0)
 				return
 			}
 			if response.StatusCode/100 != 2 {
-				pt.LogError("error on response", r, nil, service.Name, response.Body, response.StatusCode)
+				pt.LogError("error on response", nil, service.Name, response.Body, response.StatusCode)
 			}
 
 			// Only send the response from the primary connection to the serverResponses channel
@@ -325,11 +323,11 @@ func (pt *PathTarget) UseStrategy_Success(w http.ResponseWriter, r *http.Request
 			defer wg.Done()
 			response, err := conn.SendRequest(r.Method, r.URL.Path, r.Header, pt.Headers, r.URL.Query(), body)
 			if err != nil {
-				pt.LogError("error on request", r, err, service.Name, nil, 0)
+				pt.LogError("error on request", err, service.Name, nil, 0)
 				return
 			}
 			if response.StatusCode/100 != 2 {
-				pt.LogError("error on response", r, nil, service.Name, response.Body, response.StatusCode)
+				pt.LogError("error on response", nil, service.Name, response.Body, response.StatusCode)
 			}
 
 			// Only send successful responses to the serviceResponses channel
@@ -374,11 +372,11 @@ func (pt *PathTarget) UseStrategy_Highest(w http.ResponseWriter, r *http.Request
 			defer wg.Done()
 			response, err := conn.SendRequest(r.Method, r.URL.Path, r.Header, pt.Headers, r.URL.Query(), body)
 			if err != nil {
-				pt.LogError("error on request", r, err, service.Name, nil, 0)
+				pt.LogError("error on request", err, service.Name, nil, 0)
 				return
 			}
 			if response.StatusCode/100 != 2 {
-				pt.LogError("error on response", r, nil, service.Name, response.Body, response.StatusCode)
+				pt.LogError("error on response", nil, service.Name, response.Body, response.StatusCode)
 			}
 			serviceResponses <- response
 		}(conn)
@@ -420,20 +418,20 @@ func (pt *PathTarget) ForwardToReplica(w http.ResponseWriter, r *http.Request, b
 	}
 	replica := backend.GetBackendService(pt.Replica)
 	if replica == nil {
-		pt.LogError("error on replica", r, fmt.Errorf("no service handler found"), pt.Replica, nil, 0)
+		pt.LogError("error on replica", fmt.Errorf("no service handler found"), pt.Replica, nil, 0)
 	} else {
 		for _, member := range replica.Members {
 			conn := backend.GetBackendConnection(member)
 			if conn == nil {
-				pt.LogError("error on replica", r, fmt.Errorf("no connection found for member: %s", member), pt.Replica, nil, 0)
+				pt.LogError("error on replica", fmt.Errorf("no connection found for member: %s", member), pt.Replica, nil, 0)
 				continue
 			}
 			go func(c *backend.BackendConnection) {
 				resp, err := c.SendRequest(r.Method, pt.Endpoint, r.Header, pt.Headers, r.URL.Query(), body)
 				if err != nil {
-					pt.LogError("error on replica", r, err, c.Name, nil, 0)
+					pt.LogError("error on replica", err, c.Name, nil, 0)
 				} else if resp.StatusCode/100 != 2 {
-					pt.LogError("error on replica", r, nil, c.Name, resp.Body, resp.StatusCode)
+					pt.LogError("error on replica", nil, c.Name, resp.Body, resp.StatusCode)
 				}
 			}(conn)
 		}
@@ -441,7 +439,7 @@ func (pt *PathTarget) ForwardToReplica(w http.ResponseWriter, r *http.Request, b
 }
 
 // Log an error for the PathTarget
-func (pt *PathTarget) LogError(prefix string, request *http.Request, err error, service string, response []byte, status int) {
+func (pt *PathTarget) LogError(prefix string, err error, service string, response []byte, status int) {
 	err = fmt.Errorf("%s: %w", prefix, err)
 	pt.TargetLogger.Error().Err(err).
 		Str("service", service).

@@ -7,7 +7,6 @@ import (
 	"bytes"
 	"crypto/tls"
 	"fmt"
-	"log"
 	"net"
 	"net/http"
 	"net/url"
@@ -41,10 +40,9 @@ var (
 
 // Create a new reusable connection to a backend connection
 func NewBackendConnection(name string, location string, ping string, timeout time.Duration, clientCert string, clientKey string) (*BackendConnection, error) {
-	log.Printf("Creating new backend connection: %s", name)
 
 	if timeout <= 0 {
-		return nil, fmt.Errorf("timeout must be greater than 0 for backend: %s", name)
+		return nil, fmt.Errorf("timeout must be greater than 0")
 	}
 
 	keepAlive := 30 * time.Second
