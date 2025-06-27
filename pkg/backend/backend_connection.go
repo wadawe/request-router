@@ -34,16 +34,8 @@ type BackendResponse struct {
 	Body        []byte      // The response body
 }
 
-var (
-	defaultPingLocation = "/ping"
-)
-
 // Create a new reusable connection to a backend connection
-func NewBackendConnection(name string, location string, ping string, timeout time.Duration, clientCert string, clientKey string) (*BackendConnection, error) {
-
-	if timeout <= 0 {
-		return nil, fmt.Errorf("timeout must be greater than 0")
-	}
+func NewBackendConnection(cfg *config.ConnectionConfig) (*BackendConnection, error) {
 
 	keepAlive := 30 * time.Second
 	transport := &http.Transport{
@@ -57,8 +49,8 @@ func NewBackendConnection(name string, location string, ping string, timeout tim
 		}).DialContext,
 	}
 
-	if clientCert != "" && clientKey != "" {
-		cert, err := tls.LoadX509KeyPair(clientCert, clientKey)
+	if cfg.ClientCert != "" && cfg.ClientKey != "" {
+		cert, err := tls.LoadX509KeyPair(cfg.ClientCert, cfg.ClientKey)
 		if err != nil {
 			return nil, err
 		}
@@ -67,18 +59,24 @@ func NewBackendConnection(name string, location string, ping string, timeout tim
 		}
 	}
 
-	bConn := &BackendConnection{
-		Name:         name,
-		Location:     strings.TrimRight(location, "/"),  // Remove trailing slash
-		PingEndpoint: "/" + strings.TrimLeft(ping, "/"), // Add leading slash
+	timeout, err := time.ParseDuration(cfg.Timeout)
+	if err != nil {
+		return nil, fmt.Errorf("timeout is invalid: %s", err)
+	} else if timeout <= 0 {
+		return nil, fmt.Errorf("timeout must be greater than 0")
+	}
+
+	return &BackendConnection{
+		Name:         cfg.Name,
+		Location:     strings.TrimRight(cfg.Location, "/"),          // Remove trailing slash
+		PingEndpoint: "/" + strings.TrimLeft(cfg.PingEndpoint, "/"), // Ensure leading slash
 		Client: &http.Client{
 			Timeout:   timeout,
 			Transport: transport,
 		},
 		WG: sync.WaitGroup{},
-	}
+	}, nil
 
-	return bConn, nil
 }
 
 // Send a request to the backend connection

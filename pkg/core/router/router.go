@@ -4,7 +4,6 @@
 package router
 
 import (
-	"fmt"
 	"net/http"
 	"strings"
 
@@ -14,43 +13,57 @@ import (
 	"github.com/wadawe/request-router/pkg/utils"
 )
 
+type PathHandler struct {
+	Paths   map[string]*RouterPath // Map of RouterPath by path endpoint
+	Methods string                 // Pre-calculated string of HTTP methods available for the path
+}
+
 type ServiceRouter struct {
-	BindAddress  string                            // Bind address for the router
-	Server       *http.Server                      // HTTP server for the router
-	Paths        map[string]map[string]*RouterPath // Map of RouterPath by path endpoint and method
-	AccessLogger *zerolog.Logger                   // Access logger for the router
+	BindAddress  string                  // Bind address for the router
+	Server       *http.Server            // HTTP server for the router
+	Handlers     map[string]*PathHandler // Map of PathHandler by path endpoint
+	AccessLogger *zerolog.Logger         // Access logger for the router
 }
 
 // Create a new ServiceRouter
 func NewServiceRouter(cfg *config.RouterConfig) (*ServiceRouter, error) {
 	sr := &ServiceRouter{
-		BindAddress: cfg.BindAddress,
-		Paths:       make(map[string]map[string]*RouterPath),
+		BindAddress:  cfg.BindAddress,
+		Handlers:     make(map[string]*PathHandler),
+		AccessLogger: utils.NewFileLogger(cfg.AccessLogFile),
 	}
-	sr.AccessLogger = utils.NewFileLogger(cfg.AccessLogFile)
 
-	// Initialise Paths map
+	// Temporary holder for building up method lists
+	methodsPerEndpoint := make(map[string][]string)
+
 	for _, pCfg := range cfg.Paths {
-		if sr.Paths[pCfg.IncomingEndpoint] == nil {
-			sr.Paths[pCfg.IncomingEndpoint] = make(map[string]*RouterPath)
+		if sr.Handlers[pCfg.IncomingEndpoint] == nil {
+			sr.Handlers[pCfg.IncomingEndpoint] = &PathHandler{
+				Paths:   make(map[string]*RouterPath),
+				Methods: "",
+			}
 		}
+
 		for _, method := range pCfg.Methods {
-			method = strings.ToUpper(method) // Ensure method is uppercase
-			if method == http.MethodOptions {
-				continue // Skip OPTIONS method as it is handled separately
+			upperMethod := strings.ToUpper(method)
+			if upperMethod == http.MethodOptions {
+				continue // skip OPTIONS
 			}
-			if _, exists := sr.Paths[pCfg.IncomingEndpoint][method]; exists {
-				return nil, fmt.Errorf("error on path (%s): duplicate method (%s) for endpoint: %s", pCfg.Name, method, pCfg.IncomingEndpoint)
-			}
-			rp, err := NewRouterPath(pCfg, method, pCfg.IncomingEndpoint)
+
+			rp, err := NewRouterPath(pCfg, upperMethod)
 			if err != nil {
 				return nil, err
 			}
-			sr.Paths[pCfg.IncomingEndpoint][method] = rp
+			sr.Handlers[pCfg.IncomingEndpoint].Paths[upperMethod] = rp
+			methodsPerEndpoint[pCfg.IncomingEndpoint] = append(methodsPerEndpoint[pCfg.IncomingEndpoint], upperMethod)
 		}
 	}
 
-	// Return the new router
+	// Collapse to comma-separated string for each endpoint
+	for endpoint, methods := range methodsPerEndpoint {
+		sr.Handlers[endpoint].Methods = strings.Join(methods, ", ")
+	}
+
 	return sr, nil
 }
 
@@ -84,10 +97,10 @@ func (sr *ServiceRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	} else {
 
 		// Match the request
-		if path, exists := sr.Paths[r.URL.Path]; exists {
+		if handler, ok := sr.Handlers[r.URL.Path]; ok {
 			if r.Method == http.MethodOptions {
-				sr.HandleOptions(w, r, utils.GetMapKeys(path))
-			} else if rp, exists := path[r.Method]; exists {
+				sr.HandleOptions(w, r, handler.Methods)
+			} else if rp, ok := handler.Paths[r.Method]; ok {
 				rp.HandleRequest(w, r, body)
 			} else {
 				context.ReturnResponseText(w, r, http.StatusMethodNotAllowed, http.StatusText(http.StatusMethodNotAllowed))
@@ -103,8 +116,8 @@ func (sr *ServiceRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 // Return the allowed methods for the request when handling OPTIONS requests
-func (sr *ServiceRouter) HandleOptions(w http.ResponseWriter, r *http.Request, options []string) {
-	w.Header().Set("Allow", strings.Join(options, ", "))
+func (sr *ServiceRouter) HandleOptions(w http.ResponseWriter, r *http.Request, options string) {
+	w.Header().Set("Allow", options)
 	w.WriteHeader(http.StatusNoContent)
 	context.SetContextStatusCode(r, http.StatusNoContent)
 }

@@ -52,7 +52,7 @@ func NewFileLogger(logFile string) *zerolog.Logger {
 		}
 
 		// Check if file already opened
-		if file, exists := logFiles[filename]; exists {
+		if file, ok := logFiles[filename]; ok {
 			loggerOutput = file
 		} else {
 			file, err := os.OpenFile(filename, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0644)

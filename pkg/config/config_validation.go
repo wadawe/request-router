@@ -21,23 +21,23 @@ func DetectDuplicate(name string, seen map[string]bool) bool {
 
 // Apply defaults to a config file
 func (cfg *ConfigFile) ApplyDefaults() {
-	for _, connCfg := range cfg.ConnectionConfigs {
-		connCfg.ApplyDefaults()
+	for _, cCfg := range cfg.ConnectionConfigs {
+		cCfg.ApplyDefaults()
 	}
-	for _, serviceCfg := range cfg.ServiceConfigs {
-		serviceCfg.ApplyDefaults()
+	for _, sCfg := range cfg.ServiceConfigs {
+		sCfg.ApplyDefaults()
 	}
-	for _, routerCfg := range cfg.RouterConfigs {
-		routerCfg.ApplyDefaults()
-		for _, pathCfg := range routerCfg.Paths {
-			pathCfg.ApplyDefaults()
-			for _, targetCfg := range pathCfg.Targets {
-				targetCfg.ApplyDefaults(pathCfg)
-				for _, filterCfg := range targetCfg.Filters {
-					filterCfg.ApplyDefaults()
+	for _, rCfg := range cfg.RouterConfigs {
+		rCfg.ApplyDefaults()
+		for _, pCfg := range rCfg.Paths {
+			pCfg.ApplyDefaults()
+			for _, tCfg := range pCfg.Targets {
+				tCfg.ApplyDefaults(pCfg)
+				for _, fCfg := range tCfg.Filters {
+					fCfg.ApplyDefaults()
 				}
-				for _, headerCfg := range targetCfg.Headers {
-					headerCfg.ApplyDefaults()
+				for _, hCfg := range tCfg.Headers {
+					hCfg.ApplyDefaults()
 				}
 			}
 		}
@@ -53,11 +53,11 @@ func (cfg *ConfigFile) Validate() error {
 	if len(cfg.ConnectionConfigs) < 1 {
 		return fmt.Errorf("error on connections: config should have '>=1' connections")
 	}
-	for _, connCfg := range cfg.ConnectionConfigs {
-		if DetectDuplicate(connCfg.Name, entityNames) {
-			return fmt.Errorf("error on connection: duplicate name found (%s)", connCfg.Name)
+	for _, cCfg := range cfg.ConnectionConfigs {
+		if DetectDuplicate(cCfg.Name, entityNames) {
+			return fmt.Errorf("error on connection: duplicate name found (%s)", cCfg.Name)
 		}
-		err := connCfg.Validate()
+		err := cCfg.Validate()
 		if err != nil {
 			return err
 		}
@@ -67,11 +67,11 @@ func (cfg *ConfigFile) Validate() error {
 	if len(cfg.ServiceConfigs) < 1 {
 		return fmt.Errorf("error on services: config should have '>=1' services")
 	}
-	for _, serviceCfg := range cfg.ServiceConfigs {
-		if DetectDuplicate(serviceCfg.Name, entityNames) {
-			return fmt.Errorf("error on service: duplicate name found (%s)", serviceCfg.Name)
+	for _, sCfg := range cfg.ServiceConfigs {
+		if DetectDuplicate(sCfg.Name, entityNames) {
+			return fmt.Errorf("error on service: duplicate name found (%s)", sCfg.Name)
 		}
-		err := serviceCfg.Validate(cfg)
+		err := sCfg.Validate(cfg)
 		if err != nil {
 			return err
 		}
@@ -81,21 +81,21 @@ func (cfg *ConfigFile) Validate() error {
 	if len(cfg.RouterConfigs) < 1 {
 		return fmt.Errorf("error on routers: config should have '>=1' routers")
 	}
-	for _, routerCfg := range cfg.RouterConfigs {
-		if DetectDuplicate(routerCfg.BindAddress, routerBinds) {
-			return fmt.Errorf("error on router: duplicate bind address found (%s)", routerCfg.BindAddress)
+	for _, rCfg := range cfg.RouterConfigs {
+		if DetectDuplicate(rCfg.BindAddress, routerBinds) {
+			return fmt.Errorf("error on router: duplicate bind address found (%s)", rCfg.BindAddress)
 		}
-		for _, pathCfg := range routerCfg.Paths {
-			if DetectDuplicate(pathCfg.Name, entityNames) {
-				return fmt.Errorf("error on path: duplicate name found (%s)", pathCfg.Name)
+		for _, pCfg := range rCfg.Paths {
+			if DetectDuplicate(pCfg.Name, entityNames) {
+				return fmt.Errorf("error on path: duplicate name found (%s)", pCfg.Name)
 			}
-			for _, targetCfg := range pathCfg.Targets {
-				if DetectDuplicate(targetCfg.Name, entityNames) {
-					return fmt.Errorf("error on target: duplicate name found (%s)", targetCfg.Name)
+			for _, tCfg := range pCfg.Targets {
+				if DetectDuplicate(tCfg.Name, entityNames) {
+					return fmt.Errorf("error on target: duplicate name found (%s)", tCfg.Name)
 				}
 			}
 		}
-		err := routerCfg.Validate(cfg)
+		err := rCfg.Validate(cfg)
 		if err != nil {
 			return err
 		}
@@ -196,19 +196,19 @@ func (cfg *RouterConfig) Validate(root *ConfigFile) error {
 	if len(cfg.Paths) < 1 {
 		return fmt.Errorf("error on router (%s): config should have '>=1' paths", cfg.BindAddress)
 	}
-	for _, pathCfg := range cfg.Paths {
-		_, ok := endpoints[pathCfg.IncomingEndpoint]
+	for _, pCfg := range cfg.Paths {
+		_, ok := endpoints[pCfg.IncomingEndpoint]
 		if !ok {
-			endpoints[pathCfg.IncomingEndpoint] = map[string]bool{}
+			endpoints[pCfg.IncomingEndpoint] = map[string]bool{}
 		}
-		for _, method := range pathCfg.Methods {
-			if DetectDuplicate(method, endpoints[pathCfg.IncomingEndpoint]) {
-				return fmt.Errorf("error on path (%s): duplicate method (%s) found for endpoint (%s)", pathCfg.Name, method, pathCfg.IncomingEndpoint)
+		for _, method := range pCfg.Methods {
+			if DetectDuplicate(method, endpoints[pCfg.IncomingEndpoint]) {
+				return fmt.Errorf("error on path (%s): duplicate method (%s) found for endpoint (%s)", pCfg.Name, method, pCfg.IncomingEndpoint)
 			}
 		}
 
 		// Validate the config
-		err := pathCfg.Validate(root)
+		err := pCfg.Validate(root)
 		if err != nil {
 			return err
 		}
@@ -245,8 +245,8 @@ func (cfg *PathConfig) Validate(root *ConfigFile) error {
 	if len(cfg.Targets) < 1 {
 		return fmt.Errorf("error on path (%s): should have '>=1' targets", cfg.IncomingEndpoint)
 	}
-	for _, targetCfg := range cfg.Targets {
-		err := targetCfg.Validate(root, cfg.IncomingEndpoint)
+	for _, tCfg := range cfg.Targets {
+		err := tCfg.Validate(root, cfg.IncomingEndpoint)
 		if err != nil {
 			return err
 		}
@@ -282,8 +282,8 @@ func (cfg *TargetConfig) Validate(root *ConfigFile, pathName string) error {
 	}
 
 	// Validate target service
-	serviceCfg := root.GetServiceConfig(cfg.TargetService)
-	if serviceCfg == nil {
+	sCfg := root.GetServiceConfig(cfg.TargetService)
+	if sCfg == nil {
 		return fmt.Errorf("error on target (%s): unknown service (%s)", cfg.Name, cfg.TargetService)
 	}
 
@@ -311,16 +311,16 @@ func (cfg *TargetConfig) Validate(root *ConfigFile, pathName string) error {
 	}
 
 	// Validate set headers
-	for _, headerCfg := range cfg.Headers {
-		err := headerCfg.Validate(cfg)
+	for _, hCfg := range cfg.Headers {
+		err := hCfg.Validate(cfg)
 		if err != nil {
 			return err
 		}
 	}
 
 	// Validate target filters
-	for _, filterCfg := range cfg.Filters {
-		err := filterCfg.Validate(cfg)
+	for _, fCfg := range cfg.Filters {
+		err := fCfg.Validate(cfg)
 		if err != nil {
 			return err
 		}
@@ -382,7 +382,7 @@ func isRequestAction(action RequestAction) bool {
 		RequestAction_Offload:  {},
 		// Add more valid actions here as needed
 	}
-	if _, exists := validActions[action]; exists {
+	if _, ok := validActions[action]; ok {
 		return true
 	}
 	return false
@@ -398,7 +398,7 @@ func isRequestStrategy(strategy RequestStrategy) bool {
 		RequestStrategy_Highest:  {},
 		// Add more valid strategies here as needed
 	}
-	if _, exists := validStrategies[strategy]; exists {
+	if _, ok := validStrategies[strategy]; ok {
 		return true
 	}
 	return false
@@ -411,7 +411,7 @@ func isFilterStrategy(strategy FilterStrategy) bool {
 		FilterStrategy_Any: {},
 		// Add more valid strategies here as needed
 	}
-	if _, exists := validStrategies[strategy]; exists {
+	if _, ok := validStrategies[strategy]; ok {
 		return true
 	}
 	return false
@@ -424,7 +424,7 @@ func isFilterSource(context FilterSource) bool {
 		FilterSource_Query:   {},
 		// Add more valid sources here as needed
 	}
-	if _, exists := validSources[context]; exists {
+	if _, ok := validSources[context]; ok {
 		return true
 	}
 	return false

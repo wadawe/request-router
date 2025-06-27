@@ -6,6 +6,7 @@ package router
 import (
 	"fmt"
 	"net/http"
+	"strings"
 	"sync"
 
 	"github.com/rs/zerolog"
@@ -35,19 +36,14 @@ type PathTarget struct {
 }
 
 // Create a new PathTarget
-func NewPathTarget(cfg *config.TargetConfig, pathName string, pathEndpoint string) (*PathTarget, error) {
+func NewPathTarget(cfg *config.TargetConfig) (*PathTarget, error) {
 	pt := &PathTarget{
 		Name:     cfg.Name,
-		Endpoint: pathEndpoint,
+		Endpoint: "/" + strings.TrimLeft(cfg.UpstreamEndpoint, "/"), // Ensure leading slash,
 		Service:  cfg.TargetService,
 		Replica:  cfg.TargetReplica,
 		Headers:  make(map[string]string),
 		Filters:  make([]*TargetFilter, 0),
-	}
-
-	// Override the endpoint if specified in the configuration
-	if cfg.UpstreamEndpoint != "" {
-		pt.Endpoint = cfg.UpstreamEndpoint
 	}
 
 	// Set the header overrides for the target

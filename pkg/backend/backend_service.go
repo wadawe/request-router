@@ -77,8 +77,8 @@ func (bs *BackendService) GetFastestHealthyConnection() (*BackendConnection, err
 	}
 
 	// Match the first healthy ping response to a connection
-	fastestConn, exists := conns[fastestResponse]
-	if !exists {
+	fastestConn, ok := conns[fastestResponse]
+	if !ok {
 		return nil, fmt.Errorf("fastest connection (%s) does not exist in backend", fastestResponse)
 	}
 	return fastestConn, nil

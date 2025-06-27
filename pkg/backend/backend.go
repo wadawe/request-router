@@ -9,7 +9,6 @@ import (
 	"sync/atomic"
 
 	"github.com/wadawe/request-router/pkg/config"
-	"github.com/wadawe/request-router/pkg/utils"
 )
 
 type BackendManager struct {
@@ -18,8 +17,7 @@ type BackendManager struct {
 }
 
 var (
-	backendManager           atomic.Value // Holds the current active BackendManager for safe concurrent access
-	defaultConnectionTimeout = "30s"
+	backendManager atomic.Value // Holds the current active BackendManager for safe concurrent access
 )
 
 // Load the configuration for the backend service
@@ -70,11 +68,7 @@ func (bm *BackendManager) loadBackendServices(cfg *config.ConfigFile) error {
 // Load connections from a config for the backend manager
 func (bm *BackendManager) loadBackendConnections(cfg *config.ConfigFile) error {
 	for _, cCfg := range cfg.ConnectionConfigs {
-		timeout, err := utils.ConvertToDuration(cCfg.Timeout, defaultConnectionTimeout)
-		if err != nil {
-			return fmt.Errorf("error creating connection (%s) timeout: %s", cCfg.Name, err)
-		}
-		newConnection, err := NewBackendConnection(cCfg.Name, cCfg.Location, cCfg.PingEndpoint, timeout, cCfg.ClientCert, cCfg.ClientKey)
+		newConnection, err := NewBackendConnection(cCfg)
 		if err != nil {
 			return fmt.Errorf("error creating connection (%s): %s", cCfg.Name, err)
 		}

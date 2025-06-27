@@ -33,7 +33,7 @@ func NewRouterManager(cfg *config.ConfigFile) (*RouterManager, error) {
 
 	// Create ServiceRouters from the configuration file
 	for _, rCfg := range cfg.RouterConfigs {
-		if _, exists := rMgr.Routers[rCfg.BindAddress]; exists {
+		if _, ok := rMgr.Routers[rCfg.BindAddress]; ok {
 			return nil, fmt.Errorf("error on router (%s): duplicate bind address", rCfg.BindAddress)
 		}
 		sr, err := router.NewServiceRouter(rCfg)

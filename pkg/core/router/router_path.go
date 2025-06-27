@@ -6,6 +6,7 @@ package router
 import (
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/wadawe/request-router/pkg/config"
 	"github.com/wadawe/request-router/pkg/core/context"
@@ -19,12 +20,12 @@ type RouterPath struct {
 }
 
 // Create a new RouterPath
-func NewRouterPath(cfg *config.PathConfig, method string, endpoint string) (*RouterPath, error) {
+func NewRouterPath(cfg *config.PathConfig, method string) (*RouterPath, error) {
 
 	// Create PathTarget handlers for each target in the configuration
 	targets := make([]*PathTarget, 0, len(cfg.Targets))
 	for _, tCfg := range cfg.Targets {
-		pt, err := NewPathTarget(tCfg, cfg.Name, endpoint)
+		pt, err := NewPathTarget(tCfg)
 		if err != nil {
 			return nil, err
 		}
@@ -35,7 +36,7 @@ func NewRouterPath(cfg *config.PathConfig, method string, endpoint string) (*Rou
 	return &RouterPath{
 		Name:     cfg.Name,
 		Method:   method,
-		Endpoint: endpoint,
+		Endpoint: "/" + strings.TrimLeft(cfg.IncomingEndpoint, "/"), // Ensure leading slash
 		Targets:  targets,
 	}, nil
 }
