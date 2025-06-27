@@ -76,9 +76,9 @@ func ReadConfig(filename string) (*ConfigFile, error) {
 
 // Get a connection config by name
 func (cfg *ConfigFile) GetConnectionConfig(name string) *ConnectionConfig {
-	for _, iCfg := range cfg.ConnectionConfigs {
-		if iCfg.Name == name {
-			return iCfg
+	for _, cCfg := range cfg.ConnectionConfigs {
+		if cCfg.Name == name {
+			return cCfg
 		}
 	}
 	return nil
