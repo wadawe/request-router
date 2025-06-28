@@ -24,7 +24,7 @@ type PathHandler struct {
 }
 
 type ServiceRouter struct {
-	BindAddress  string                  // Bind address for the router
+	Config       *config.RouterConfig    // Configuration for the router
 	TlsCerts     *tls.Certificate        // TLS certificates for the router
 	Handlers     map[string]*PathHandler // Map of PathHandler by path endpoint
 	AccessLogger *zerolog.Logger         // Access logger for the router
@@ -34,7 +34,7 @@ type ServiceRouter struct {
 // Create a new ServiceRouter
 func NewServiceRouter(cfg *config.RouterConfig) (*ServiceRouter, error) {
 	sr := &ServiceRouter{
-		BindAddress:  cfg.BindAddress,
+		Config:       cfg,
 		Handlers:     make(map[string]*PathHandler),
 		AccessLogger: utils.NewFileLogger(cfg.AccessLogFile),
 	}
@@ -50,6 +50,7 @@ func NewServiceRouter(cfg *config.RouterConfig) (*ServiceRouter, error) {
 			}
 		}
 
+		// Create a new RouterPath for each method in the path configuration
 		for _, method := range pCfg.Methods {
 			upperMethod := strings.ToUpper(method)
 			if upperMethod == http.MethodOptions {
@@ -89,7 +90,7 @@ func NewServiceRouter(cfg *config.RouterConfig) (*ServiceRouter, error) {
 	if fn, ok := httpServer[cfg.HttpVersion]; ok {
 		sr.Server = fn(sr)
 	} else {
-		return nil, fmt.Errorf("error on router (%s): unhandled HTTP version (%s)", sr.BindAddress, cfg.HttpVersion)
+		return nil, fmt.Errorf("error on router (%s): unhandled HTTP version (%s)", sr.Config.BindAddress, cfg.HttpVersion)
 	}
 
 	// Return the new ServiceRouter
@@ -111,7 +112,7 @@ func (sr *ServiceRouter) ListenAndServe() error {
 // ServeHTTP implements the http.Handler interface for ServiceRouter
 func (sr *ServiceRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	r = context.AddRequestContext(r)
-	context.AppendToContextTrace(r, "router", sr.BindAddress)
+	context.AppendToContextTrace(r, "router", sr.Config.BindAddress)
 
 	// Read the request body
 	body, err := utils.ReadRequestBody(r)
@@ -157,7 +158,7 @@ func (sr *ServiceRouter) Stop() error {
 func NewHttpServer_1_1(sr *ServiceRouter) *http.Server {
 	if sr.TlsCerts != nil {
 		return &http.Server{
-			Addr:    sr.BindAddress,
+			Addr:    sr.Config.BindAddress,
 			Handler: sr,
 			TLSConfig: &tls.Config{
 				Certificates: []tls.Certificate{*sr.TlsCerts},
@@ -167,7 +168,7 @@ func NewHttpServer_1_1(sr *ServiceRouter) *http.Server {
 
 	// Unencrypted HTTP/1.1 server
 	return &http.Server{
-		Addr:    sr.BindAddress,
+		Addr:    sr.Config.BindAddress,
 		Handler: sr,
 	}
 }
@@ -176,7 +177,7 @@ func NewHttpServer_1_1(sr *ServiceRouter) *http.Server {
 func NewHttpServer_2(sr *ServiceRouter) *http.Server {
 	if sr.TlsCerts != nil {
 		return &http.Server{
-			Addr:    sr.BindAddress,
+			Addr:    sr.Config.BindAddress,
 			Handler: sr,
 			TLSConfig: &tls.Config{
 				Certificates: []tls.Certificate{*sr.TlsCerts},
@@ -185,11 +186,11 @@ func NewHttpServer_2(sr *ServiceRouter) *http.Server {
 	}
 
 	// Unencrypted HTTP/2 server
-	log.Printf("WARNING: HTTP/2 router (%s) without TLS certificates, using unencrypted HTTP/2", sr.BindAddress)
+	log.Printf("WARNING: HTTP/2 router (%s) without TLS certificates, using unencrypted HTTP/2", sr.Config.BindAddress)
 	var protocols http.Protocols
 	protocols.SetUnencryptedHTTP2(true)
 	return &http.Server{
-		Addr:      sr.BindAddress,
+		Addr:      sr.Config.BindAddress,
 		Handler:   sr,
 		Protocols: &protocols,
 	}

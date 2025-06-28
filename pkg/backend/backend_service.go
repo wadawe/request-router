@@ -12,22 +12,20 @@ import (
 )
 
 type BackendService struct {
-	Name    string   // The name of the service
-	Members []string // The connection names for the service
+	Config *config.ServiceConfig // Configuration for the service
 }
 
 // Create a new service handler
 func NewBackendService(cfg *config.ServiceConfig) *BackendService {
 	return &BackendService{
-		Name:    cfg.Name,
-		Members: cfg.Members,
+		Config: cfg,
 	}
 }
 
 // Get all service connections
 func (bs *BackendService) GetConnections() map[string]*BackendConnection {
 	conns := make(map[string]*BackendConnection)
-	for _, connName := range bs.Members {
+	for _, connName := range bs.Config.Members {
 		conn := GetBackendConnection(connName)
 		if conn != nil {
 			conns[connName] = conn
@@ -51,14 +49,14 @@ func (bs *BackendService) GetFastestHealthyConnection() (*BackendConnection, err
 	for _, conn := range conns {
 		go func(bc *BackendConnection) {
 			defer wg.Done()
-			resp, err := bc.SendRequest(http.MethodGet, bc.PingEndpoint, nil, nil, nil, nil)
+			resp, err := bc.SendRequest(http.MethodGet, bc.Config.PingEndpoint, nil, nil, nil, nil)
 			if err != nil {
 				return
 			}
 
 			// If the response is OK, update the healthy channel with the connection name
 			if resp.StatusCode/100 == 2 {
-				responses <- bc.Name
+				responses <- bc.Config.Name
 			}
 		}(conn)
 	}
