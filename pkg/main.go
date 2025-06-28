@@ -81,9 +81,9 @@ func main() {
 				log.Printf("Received signal (%q): reloading...", sig)
 				err := ReloadBackend()
 				if err != nil {
-					log.Fatalf("Error on router reload: %s", err)
+					log.Fatalf("Error on backend reload: %s", err)
 				} else {
-					log.Printf("Router reloaded successfully!")
+					log.Printf("Backend reloaded successfully!")
 				}
 
 			// Handle unknown signals

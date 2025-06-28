@@ -13,6 +13,7 @@ This release is a review and rewrite of [`bbc/relay-for-influxdb`](https://githu
 - Added request strategies: `ping`, `primary`, `sequence`, `success`, and `highest`.
 - Added request replication to replica services without affecting client responses.
 - Added support for dynamic backend config reloads via `SIGHUP`.
+- Added support for multiple HTTP Versions: `1.1` and `2`.
 - Added TOML-based configuration for defining routers, paths, targets, services, and connections.
 - Added support for structured logging across multiple components.
 - Added request/response body handling helpers for safe reading and closing.

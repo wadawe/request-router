@@ -5,7 +5,6 @@ package backend
 
 import (
 	"fmt"
-	"log"
 	"sync/atomic"
 
 	"github.com/wadawe/request-router/pkg/config"
@@ -30,7 +29,6 @@ func LoadConfig(cfg *config.ConfigFile) error {
 	// Put the new manager into the atomic value
 	// This will replace the old manager if it exists
 	oldMgr := backendManager.Swap(newMgr)
-	log.Println("Backend configuration loaded!")
 	if oldMgr != nil {
 		oldMgr.(*BackendManager).Release()
 	}

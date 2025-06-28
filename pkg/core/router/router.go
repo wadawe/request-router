@@ -4,6 +4,9 @@
 package router
 
 import (
+	"crypto/tls"
+	"fmt"
+	"log"
 	"net/http"
 	"strings"
 
@@ -13,6 +16,8 @@ import (
 	"github.com/wadawe/request-router/pkg/utils"
 )
 
+type HttpServerFunction func(*ServiceRouter) *http.Server
+
 type PathHandler struct {
 	Paths   map[string]*RouterPath // Map of RouterPath by path endpoint
 	Methods string                 // Pre-calculated string of HTTP methods available for the path
@@ -20,9 +25,10 @@ type PathHandler struct {
 
 type ServiceRouter struct {
 	BindAddress  string                  // Bind address for the router
-	Server       *http.Server            // HTTP server for the router
+	TlsCerts     *tls.Certificate        // TLS certificates for the router
 	Handlers     map[string]*PathHandler // Map of PathHandler by path endpoint
 	AccessLogger *zerolog.Logger         // Access logger for the router
+	Server       *http.Server            // HTTP server for the router
 }
 
 // Create a new ServiceRouter
@@ -65,17 +71,33 @@ func NewServiceRouter(cfg *config.RouterConfig) (*ServiceRouter, error) {
 		sr.Handlers[endpoint].Methods = strings.Join(methods, ", ")
 	}
 
+	// Set the server certificate and key if provided
+	if cfg.ServerCert != "" && cfg.ServerKey != "" {
+		cert, err := tls.LoadX509KeyPair(cfg.ServerCert, cfg.ServerKey)
+		if err != nil {
+			return nil, err
+		}
+		sr.TlsCerts = &cert
+	}
+
+	// Set the HTTP server for the ServiceRouter
+	var httpServer = map[config.HttpVersion]HttpServerFunction{
+		config.HttpVersion_1_1: NewHttpServer_1_1,
+		config.HttpVersion_2:   NewHttpServer_2,
+		// Add more versions as needed
+	}
+	if fn, ok := httpServer[cfg.HttpVersion]; ok {
+		sr.Server = fn(sr)
+	} else {
+		return nil, fmt.Errorf("error on router (%s): unhandled HTTP version (%s)", sr.BindAddress, cfg.HttpVersion)
+	}
+
+	// Return the new ServiceRouter
 	return sr, nil
 }
 
 // Start the ServiceRouter
 func (sr *ServiceRouter) ListenAndServe() error {
-	sr.Server = &http.Server{
-		Addr:    sr.BindAddress,
-		Handler: sr, // Handler requires .ServeHTTP() method
-	}
-
-	// Start the HTTP server
 	err := sr.Server.ListenAndServe()
 
 	// Check for errors
@@ -129,4 +151,46 @@ func (sr *ServiceRouter) Stop() error {
 		return sr.Server.Close()
 	}
 	return nil
+}
+
+// Create a new HTTP server for HTTP version 1.1
+func NewHttpServer_1_1(sr *ServiceRouter) *http.Server {
+	if sr.TlsCerts != nil {
+		return &http.Server{
+			Addr:    sr.BindAddress,
+			Handler: sr,
+			TLSConfig: &tls.Config{
+				Certificates: []tls.Certificate{*sr.TlsCerts},
+			},
+		}
+	}
+
+	// Unencrypted HTTP/1.1 server
+	return &http.Server{
+		Addr:    sr.BindAddress,
+		Handler: sr,
+	}
+}
+
+// Create a new HTTP server for HTTP version 2
+func NewHttpServer_2(sr *ServiceRouter) *http.Server {
+	if sr.TlsCerts != nil {
+		return &http.Server{
+			Addr:    sr.BindAddress,
+			Handler: sr,
+			TLSConfig: &tls.Config{
+				Certificates: []tls.Certificate{*sr.TlsCerts},
+			},
+		}
+	}
+
+	// Unencrypted HTTP/2 server
+	log.Printf("WARNING: HTTP/2 router (%s) without TLS certificates, using unencrypted HTTP/2", sr.BindAddress)
+	var protocols http.Protocols
+	protocols.SetUnencryptedHTTP2(true)
+	return &http.Server{
+		Addr:      sr.BindAddress,
+		Handler:   sr,
+		Protocols: &protocols,
+	}
 }
