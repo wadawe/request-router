@@ -6,20 +6,19 @@ package router
 import (
 	"fmt"
 	"net/http"
-	"strings"
 
 	"github.com/wadawe/request-router/pkg/config"
 	"github.com/wadawe/request-router/pkg/core/context"
 )
 
 type RouterPath struct {
-	Name     string        // Name of the path
-	Method   string        // The HTTP method for the router path
-	Endpoint string        // The incoming endpoint for the path router
-	Targets  []*PathTarget // List of targets for the path
+	Config  *config.PathConfig // Configuration for the path
+	Method  string             // The HTTP method for the router path
+	Targets []*PathTarget      // List of targets for the path
 }
 
 // Create a new RouterPath
+// A single RouterPath corresponds to a specific path and specific HTTP method
 func NewRouterPath(cfg *config.PathConfig, method string) (*RouterPath, error) {
 
 	// Create PathTarget handlers for each target in the configuration
@@ -34,22 +33,21 @@ func NewRouterPath(cfg *config.PathConfig, method string) (*RouterPath, error) {
 
 	// Return the new RouterPath
 	return &RouterPath{
-		Name:     cfg.Name,
-		Method:   method,
-		Endpoint: "/" + strings.TrimLeft(cfg.IncomingEndpoint, "/"), // Ensure leading slash
-		Targets:  targets,
+		Config:  cfg,
+		Method:  method,
+		Targets: targets,
 	}, nil
 }
 
 // Handle a request to the RouterPath
 func (rp *RouterPath) HandleRequest(w http.ResponseWriter, r *http.Request, body []byte) {
-	context.AppendToContextTrace(r, "path", rp.Name)
+	context.AppendToContextTrace(r, "path", rp.Config.Name)
 	for _, target := range rp.Targets {
 		if len(target.Filters) == 0 || target.MatchFilters(r) {
-			context.AppendToContextTrace(r, "target", target.Name)
+			context.AppendToContextTrace(r, "target", target.Config.Name)
 			target.ActionRequest(w, r, body)
 			return
 		}
 	}
-	context.ReturnResponseText(w, r, http.StatusBadRequest, fmt.Sprintf("No targets matched for path: %s", rp.Name))
+	context.ReturnResponseText(w, r, http.StatusBadRequest, fmt.Sprintf("No targets matched for path: %s", rp.Config.Name))
 }

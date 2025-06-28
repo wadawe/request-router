@@ -40,7 +40,7 @@ func NewRouterManager(cfg *config.ConfigFile) (*RouterManager, error) {
 		if err != nil {
 			return nil, err
 		}
-		rMgr.Routers[sr.BindAddress] = sr
+		rMgr.Routers[sr.Config.BindAddress] = sr
 	}
 
 	// Return the RouterManager
@@ -59,10 +59,10 @@ func (rMgr *RouterManager) Start() {
 		// Defer the wait group so that it is decremented when the function finishes
 		go func(router *router.ServiceRouter) {
 			defer wg.Done()
-			log.Printf("Starting router on: %s", router.BindAddress)
+			log.Printf("Starting router on: %s", router.Config.BindAddress)
 			err := router.ListenAndServe()
 			if err != nil {
-				log.Printf("Error running router (%s): %v", router.BindAddress, err)
+				log.Printf("Error running router (%s): %v", router.Config.BindAddress, err)
 			}
 		}(sr)
 	}

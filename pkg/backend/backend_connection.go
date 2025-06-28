@@ -10,7 +10,6 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"strings"
 	"sync"
 	"time"
 
@@ -19,11 +18,9 @@ import (
 )
 
 type BackendConnection struct {
-	Name         string         // The name of the connection
-	Location     string         // The base URL of connection
-	PingEndpoint string         // The URL to ping for the connection
-	Client       *http.Client   // The HTTP client to use for requests
-	WG           sync.WaitGroup // Tracks in-flight requests for graceful shutdown
+	Config *config.ConnectionConfig // Configuration for the connection
+	Client *http.Client             // The HTTP client to use for requests
+	WG     sync.WaitGroup           // Tracks in-flight requests for graceful shutdown
 }
 
 type BackendResponse struct {
@@ -67,16 +64,13 @@ func NewBackendConnection(cfg *config.ConnectionConfig) (*BackendConnection, err
 	}
 
 	return &BackendConnection{
-		Name:         cfg.Name,
-		Location:     strings.TrimRight(cfg.Location, "/"),          // Remove trailing slash
-		PingEndpoint: "/" + strings.TrimLeft(cfg.PingEndpoint, "/"), // Ensure leading slash
+		Config: cfg,
 		Client: &http.Client{
 			Timeout:   timeout,
 			Transport: transport,
 		},
 		WG: sync.WaitGroup{},
 	}, nil
-
 }
 
 // Send a request to the backend connection
@@ -94,7 +88,7 @@ func (bConn *BackendConnection) SendRequest(method string, path string, reqHeade
 	bodyReader := bytes.NewReader(body)
 
 	// Create a new request
-	req, err := http.NewRequest(method, bConn.Location+path, bodyReader)
+	req, err := http.NewRequest(method, bConn.Config.Location+path, bodyReader)
 	if err != nil {
 		return nil, err
 	}
@@ -138,7 +132,7 @@ func (bConn *BackendConnection) SendRequest(method string, path string, reqHeade
 		return nil, err
 	}
 	return &BackendResponse{
-		Name:        bConn.Name,
+		Name:        bConn.Config.Name,
 		ContentType: resp.Header.Get("Content-Type"),
 		StatusCode:  resp.StatusCode,
 		Headers:     resp.Header,
