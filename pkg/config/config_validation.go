@@ -180,7 +180,9 @@ func (cfg *ServiceConfig) Validate(root *ConfigFile) error {
 
 // Apply defaults to a router config
 func (cfg *RouterConfig) ApplyDefaults() {
-	// ...
+	if cfg.HttpVersion == "" {
+		cfg.HttpVersion = "1.1"
+	}
 }
 
 // Validate the configuration of a router
@@ -190,6 +192,19 @@ func (cfg *RouterConfig) Validate(root *ConfigFile) error {
 	// Validate bind address
 	if cfg.BindAddress == "" {
 		return fmt.Errorf("error on router: bind address is empty")
+	}
+
+	// Validate http version
+	if !isHttpVersion(cfg.HttpVersion) {
+		return fmt.Errorf("error on router (%s): unknown HTTP version (%s)", cfg.BindAddress, cfg.HttpVersion)
+	}
+
+	// Validate server certificate and key
+	if cfg.ServerCert != "" && cfg.ServerKey == "" {
+		return fmt.Errorf("error on router (%s): tls cert is set without tls key", cfg.BindAddress)
+	}
+	if cfg.ServerCert == "" && cfg.ServerKey != "" {
+		return fmt.Errorf("error on router (%s): tls key is set without tls cert", cfg.BindAddress)
 	}
 
 	// Validate router paths
@@ -373,6 +388,17 @@ func (cfg *HeaderConfig) Validate(target *TargetConfig) error {
 	return nil
 }
 
+// Verify if a HttpVersion is valid
+func isHttpVersion(version HttpVersion) bool {
+	var validVersions = map[HttpVersion]struct{}{
+		HttpVersion_1_1: {},
+		HttpVersion_2:   {},
+		// Add more valid versions here as needed
+	}
+	_, ok := validVersions[version]
+	return ok
+}
+
 // Verify if a RequestAction is valid
 func isRequestAction(action RequestAction) bool {
 	var validActions = map[RequestAction]struct{}{
@@ -382,10 +408,8 @@ func isRequestAction(action RequestAction) bool {
 		RequestAction_Offload:  {},
 		// Add more valid actions here as needed
 	}
-	if _, ok := validActions[action]; ok {
-		return true
-	}
-	return false
+	_, ok := validActions[action]
+	return ok
 }
 
 // Verify if a RequestStrategy is valid
@@ -398,10 +422,8 @@ func isRequestStrategy(strategy RequestStrategy) bool {
 		RequestStrategy_Highest:  {},
 		// Add more valid strategies here as needed
 	}
-	if _, ok := validStrategies[strategy]; ok {
-		return true
-	}
-	return false
+	_, ok := validStrategies[strategy]
+	return ok
 }
 
 // Verify if a FilterStrategy is valid
@@ -411,10 +433,8 @@ func isFilterStrategy(strategy FilterStrategy) bool {
 		FilterStrategy_Any: {},
 		// Add more valid strategies here as needed
 	}
-	if _, ok := validStrategies[strategy]; ok {
-		return true
-	}
-	return false
+	_, ok := validStrategies[strategy]
+	return ok
 }
 
 // Verify if a FilterSource is valid
@@ -424,8 +444,6 @@ func isFilterSource(context FilterSource) bool {
 		FilterSource_Query:   {},
 		// Add more valid sources here as needed
 	}
-	if _, ok := validSources[context]; ok {
-		return true
-	}
-	return false
+	_, ok := validSources[context]
+	return ok
 }

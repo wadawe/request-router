@@ -27,12 +27,12 @@ The goal of `request-router` is to offer a streamlined, configuration-first rout
 
 ## Features
 
-* **Advanced Routing** : Route HTTP-based requests to different endpoints based on configurable filters and strategies.
-* **Dynamic Configuration** : Easily update backend configurations without restarting the service.
-* **Request Filtering** : Apply filters to route requests based on headers or query parameters.
-* **Request Replication** : Forward requests to other destinations, without affecting responses to the client.
-* **Request Logging** : Configurable logging for different components.
-* **Header Setting** : Configure custom headers for requests to backend instances.
+* **Flexible Request Routing** : Route HTTP requests to multiple backends using configurable paths, targets, and routing strategies.
+* **Dynamic Configuration Reloading** : Update connections and services on the fly without downtime.
+* **Target Filtering** : Apply rules to selectively route requests based on headers or query parameters.
+* **Request Replication** : Optionally forward requests to secondary replica services for auditing or redundancy.
+* **Customisable Logging** : Configure access and target logs for easy tracability.
+* **Support for HTTP/1.1 and HTTP/2** : Choose your preferred HTTP version per router, with TLS support.
 
 ## Limitations
 

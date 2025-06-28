@@ -35,7 +35,6 @@ func SetupLogDirectory(logDirFlag *string) {
 			log.Fatalf("Error creating log directory (%s): %s", logDir, err)
 		}
 	}
-	log.Printf("Using log directory: %s", logDir)
 	config.SetLogDir(logDir)
 }
 

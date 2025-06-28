@@ -5,7 +5,6 @@ package config
 
 import (
 	"fmt"
-	"log"
 	"os"
 
 	"github.com/BurntSushi/toml"
@@ -51,7 +50,6 @@ func GetVersion() string {
 
 // Read and validate a configuration file
 func ReadConfig(filename string) (*ConfigFile, error) {
-	log.Printf("Reading config from %s", filename)
 	var config = &ConfigFile{}
 	if filename == "" {
 		return nil, fmt.Errorf("no configuration file specified")
