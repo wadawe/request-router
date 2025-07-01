@@ -180,9 +180,7 @@ func (cfg *ServiceConfig) Validate(root *ConfigFile) error {
 
 // Apply defaults to a router config
 func (cfg *RouterConfig) ApplyDefaults() {
-	if cfg.HttpVersion == "" {
-		cfg.HttpVersion = "1.1"
-	}
+	// ...
 }
 
 // Validate the configuration of a router
@@ -192,11 +190,6 @@ func (cfg *RouterConfig) Validate(root *ConfigFile) error {
 	// Validate bind address
 	if cfg.BindAddress == "" {
 		return fmt.Errorf("error on router: bind address is empty")
-	}
-
-	// Validate http version
-	if !isHttpVersion(cfg.HttpVersion) {
-		return fmt.Errorf("error on router (%s): unknown HTTP version (%s)", cfg.BindAddress, cfg.HttpVersion)
 	}
 
 	// Validate server certificate and key
@@ -386,17 +379,6 @@ func (cfg *HeaderConfig) Validate(target *TargetConfig) error {
 		return fmt.Errorf("error on target (%s) headers: header key is empty", target.Name)
 	}
 	return nil
-}
-
-// Verify if a HttpVersion is valid
-func isHttpVersion(version HttpVersion) bool {
-	var validVersions = map[HttpVersion]struct{}{
-		HttpVersion_1_1: {},
-		HttpVersion_2:   {},
-		// Add more valid versions here as needed
-	}
-	_, ok := validVersions[version]
-	return ok
 }
 
 // Verify if a RequestAction is valid

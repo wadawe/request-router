@@ -23,5 +23,5 @@ build_local:
 
 .PHONY: test
 test: 
-	./bin/request-router -dry-run -config ./configs/_template.conf -log-dir ./logs
-	./bin/request-router -dry-run -config ./configs/influxdb_v1.conf -log-dir ./logs
+	./bin/request-router -dry-run -config ./template.conf -log-dir ./logs
+	./bin/request-router -dry-run -config ./examples/influxdb_v1.conf -log-dir ./logs

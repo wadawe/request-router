@@ -13,13 +13,12 @@ import (
 
 type RouterPath struct {
 	Config  *config.PathConfig // Configuration for the path
-	Method  string             // The HTTP method for the router path
 	Targets []*PathTarget      // List of targets for the path
 }
 
 // Create a new RouterPath
-// A single RouterPath corresponds to a specific path and specific HTTP method
-func NewRouterPath(cfg *config.PathConfig, method string) (*RouterPath, error) {
+// A single RouterPath corresponds to a specific path
+func NewRouterPath(cfg *config.PathConfig) (*RouterPath, error) {
 
 	// Create PathTarget handlers for each target in the configuration
 	targets := make([]*PathTarget, 0, len(cfg.Targets))
@@ -34,7 +33,6 @@ func NewRouterPath(cfg *config.PathConfig, method string) (*RouterPath, error) {
 	// Return the new RouterPath
 	return &RouterPath{
 		Config:  cfg,
-		Method:  method,
 		Targets: targets,
 	}, nil
 }
