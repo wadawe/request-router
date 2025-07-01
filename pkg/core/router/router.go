@@ -5,7 +5,6 @@ package router
 
 import (
 	"crypto/tls"
-	"fmt"
 	"log"
 	"net/http"
 	"strings"
@@ -43,23 +42,24 @@ func NewServiceRouter(cfg *config.RouterConfig) (*ServiceRouter, error) {
 	methodsPerEndpoint := make(map[string][]string)
 
 	for _, pCfg := range cfg.Paths {
+
+		// Create a PathHandler for a specific endpoint, if it doesn't exist
 		if sr.Handlers[pCfg.IncomingEndpoint] == nil {
 			sr.Handlers[pCfg.IncomingEndpoint] = &PathHandler{
-				Paths:   make(map[string]*RouterPath),
-				Methods: "",
+				Paths: make(map[string]*RouterPath),
 			}
 		}
 
-		// Create a new RouterPath for each method in the path configuration
+		rp, err := NewRouterPath(pCfg)
+		if err != nil {
+			return nil, err
+		}
+
+		// Store the RouterPath in the PathHandler for each path method
 		for _, method := range pCfg.Methods {
 			upperMethod := strings.ToUpper(method)
 			if upperMethod == http.MethodOptions {
 				continue // skip OPTIONS
-			}
-
-			rp, err := NewRouterPath(pCfg, upperMethod)
-			if err != nil {
-				return nil, err
 			}
 			sr.Handlers[pCfg.IncomingEndpoint].Paths[upperMethod] = rp
 			methodsPerEndpoint[pCfg.IncomingEndpoint] = append(methodsPerEndpoint[pCfg.IncomingEndpoint], upperMethod)
@@ -69,10 +69,10 @@ func NewServiceRouter(cfg *config.RouterConfig) (*ServiceRouter, error) {
 	// Collapse to comma-separated string for each endpoint, ready to be used for the OPTIONS response
 	// We precompute this to avoid recalculating it for every request
 	for endpoint, methods := range methodsPerEndpoint {
+		methods = append(methods, http.MethodOptions) // Always include OPTIONS
 		sr.Handlers[endpoint].Methods = strings.Join(methods, ", ")
 	}
 
-	// Set the server certificate and key if provided
 	if cfg.ServerCert != "" && cfg.ServerKey != "" {
 		cert, err := tls.LoadX509KeyPair(cfg.ServerCert, cfg.ServerKey)
 		if err != nil {
@@ -81,17 +81,7 @@ func NewServiceRouter(cfg *config.RouterConfig) (*ServiceRouter, error) {
 		sr.TlsCerts = &cert
 	}
 
-	// Set the HTTP server for the ServiceRouter
-	var httpServer = map[config.HttpVersion]HttpServerFunction{
-		config.HttpVersion_1_1: NewHttpServer_1_1,
-		config.HttpVersion_2:   NewHttpServer_2,
-		// Add more versions as needed
-	}
-	if fn, ok := httpServer[cfg.HttpVersion]; ok {
-		sr.Server = fn(sr)
-	} else {
-		return nil, fmt.Errorf("error on router (%s): unhandled HTTP version (%s)", sr.Config.BindAddress, cfg.HttpVersion)
-	}
+	sr.Server = NewHttpServer(sr)
 
 	// Return the new ServiceRouter
 	return sr, nil
@@ -99,7 +89,12 @@ func NewServiceRouter(cfg *config.RouterConfig) (*ServiceRouter, error) {
 
 // Start the ServiceRouter
 func (sr *ServiceRouter) ListenAndServe() error {
-	err := sr.Server.ListenAndServe()
+	var err error
+	if sr.TlsCerts != nil {
+		err = sr.Server.ListenAndServeTLS("", "")
+	} else {
+		err = sr.Server.ListenAndServe()
+	}
 
 	// Check for errors
 	// ErrServerClosed always returned when server is closed gracefully
@@ -109,34 +104,72 @@ func (sr *ServiceRouter) ListenAndServe() error {
 	return nil
 }
 
+// Create a new HTTP server for the ServiceRouter
+func NewHttpServer(sr *ServiceRouter) *http.Server {
+
+	// TLS defined
+	if sr.TlsCerts != nil {
+		return &http.Server{
+			Addr:    sr.Config.BindAddress,
+			Handler: sr,
+			TLSConfig: &tls.Config{
+				Certificates: []tls.Certificate{*sr.TlsCerts},
+			},
+		}
+	}
+
+	// Force unencrypted HTTP/2 (h2c)
+	if sr.Config.ForceH2C {
+		log.Printf("WARNING: HTTP/2 router (%s) without TLS certificates, using h2c", sr.Config.BindAddress)
+		var protocols http.Protocols
+		protocols.SetUnencryptedHTTP2(true)
+		return &http.Server{
+			Addr:      sr.Config.BindAddress,
+			Handler:   sr,
+			Protocols: &protocols,
+		}
+	}
+
+	// Default plain HTTP/1.1
+	return &http.Server{
+		Addr:    sr.Config.BindAddress,
+		Handler: sr,
+	}
+
+}
+
 // ServeHTTP implements the http.Handler interface for ServiceRouter
 func (sr *ServiceRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	r = context.AddRequestContext(r)
 	context.AppendToContextTrace(r, "router", sr.Config.BindAddress)
 
+	// Always log the request in the access logger
+	// Defer is used to ensure the log is written after the response is sent
+	defer context.LogRequestContext(r, sr.AccessLogger)
+
 	// Read the request body
 	body, err := utils.ReadRequestBody(r)
 	if err != nil {
 		context.ReturnResponseText(w, r, http.StatusInternalServerError, "Unable to read request body: "+err.Error())
-	} else {
-
-		// Match the request
-		if handler, ok := sr.Handlers[r.URL.Path]; ok {
-			if r.Method == http.MethodOptions {
-				sr.HandleOptions(w, r, handler.Methods)
-			} else if rp, ok := handler.Paths[r.Method]; ok {
-				rp.HandleRequest(w, r, body)
-			} else {
-				context.ReturnResponseText(w, r, http.StatusMethodNotAllowed, http.StatusText(http.StatusMethodNotAllowed))
-			}
-		} else {
-			context.ReturnResponseText(w, r, http.StatusNotFound, http.StatusText(http.StatusNotFound))
-		}
-
+		return
 	}
 
-	// Always log the request in the access logger
-	context.LogRequestContext(r, sr.AccessLogger)
+	// Match the request path to a PathHandler
+	ph, ok := sr.Handlers[r.URL.Path]
+	if !ok {
+		context.ReturnResponseText(w, r, http.StatusNotFound, http.StatusText(http.StatusNotFound))
+		return
+	}
+
+	// Match the request method to a RouterPath
+	if r.Method == http.MethodOptions {
+		sr.HandleOptions(w, r, ph.Methods)
+	} else if rp, ok := ph.Paths[r.Method]; ok {
+		rp.HandleRequest(w, r, body)
+	} else {
+		context.ReturnResponseText(w, r, http.StatusMethodNotAllowed, http.StatusText(http.StatusMethodNotAllowed))
+	}
+
 }
 
 // Return the allowed methods for the request when handling OPTIONS requests
@@ -152,46 +185,4 @@ func (sr *ServiceRouter) Stop() error {
 		return sr.Server.Close()
 	}
 	return nil
-}
-
-// Create a new HTTP server for HTTP version 1.1
-func NewHttpServer_1_1(sr *ServiceRouter) *http.Server {
-	if sr.TlsCerts != nil {
-		return &http.Server{
-			Addr:    sr.Config.BindAddress,
-			Handler: sr,
-			TLSConfig: &tls.Config{
-				Certificates: []tls.Certificate{*sr.TlsCerts},
-			},
-		}
-	}
-
-	// Unencrypted HTTP/1.1 server
-	return &http.Server{
-		Addr:    sr.Config.BindAddress,
-		Handler: sr,
-	}
-}
-
-// Create a new HTTP server for HTTP version 2
-func NewHttpServer_2(sr *ServiceRouter) *http.Server {
-	if sr.TlsCerts != nil {
-		return &http.Server{
-			Addr:    sr.Config.BindAddress,
-			Handler: sr,
-			TLSConfig: &tls.Config{
-				Certificates: []tls.Certificate{*sr.TlsCerts},
-			},
-		}
-	}
-
-	// Unencrypted HTTP/2 server
-	log.Printf("WARNING: HTTP/2 router (%s) without TLS certificates, using unencrypted HTTP/2", sr.Config.BindAddress)
-	var protocols http.Protocols
-	protocols.SetUnencryptedHTTP2(true)
-	return &http.Server{
-		Addr:      sr.Config.BindAddress,
-		Handler:   sr,
-		Protocols: &protocols,
-	}
 }

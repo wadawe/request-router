@@ -24,12 +24,12 @@ type ServiceConfig struct {
 }
 
 type RouterConfig struct {
-	BindAddress   string        `toml:"bind"`         // Address to bind the router to
-	AccessLogFile string        `toml:"access-log"`   // Access log file for the router
-	Paths         []*PathConfig `toml:"path"`         // List of paths to route requests through
-	HttpVersion   HttpVersion   `toml:"http-version"` // HTTP version to use for receiving requests
-	ServerCert    string        `toml:"tls-cert"`     // TLS certificate file for the router
-	ServerKey     string        `toml:"tls-key"`      // TLS key file for the router
+	BindAddress   string        `toml:"bind"`       // Address to bind the router to
+	AccessLogFile string        `toml:"access-log"` // Access log file for the router
+	Paths         []*PathConfig `toml:"path"`       // List of paths to route requests through
+	ServerCert    string        `toml:"tls-cert"`   // TLS certificate file for the router
+	ServerKey     string        `toml:"tls-key"`    // TLS key file for the router
+	ForceH2C      bool          `toml:"force-h2c"`  // Force HTTP/2 over cleartext (h2c) connections
 }
 
 type PathConfig struct {
@@ -62,13 +62,6 @@ type HeaderConfig struct {
 	Key   string `toml:"key"`   // Header key to set
 	Value string `toml:"value"` // Header value to set
 }
-
-type HttpVersion string // The HTTP version to use for the router
-
-const (
-	HttpVersion_1_1 HttpVersion = "1.1" // HTTP/1.1
-	HttpVersion_2   HttpVersion = "2"   // HTTP/2.0
-)
 
 type RequestAction string // The current status of the target
 

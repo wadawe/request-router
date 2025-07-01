@@ -4,7 +4,7 @@
 
 [license-img]: https://img.shields.io/badge/license-MIT-blue.svg
 [license-href]: ./LICENSE
-[config-href]: ./configs/_template.conf
+[config-href]: ./template.conf
 [pkg-href]: ./pkg/
 
 ---
@@ -94,7 +94,7 @@ If no target matches, the request is rejected with a `400 Bad Request`.
 
 ### Configuration
 
-A full break-down of the configuration file structure can be found in the [configs/_template.conf][config-href] file.
+A full break-down of the configuration file structure can be found in the [template.conf][config-href] file.
 
 ### Development
 
