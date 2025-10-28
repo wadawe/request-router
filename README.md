@@ -40,23 +40,23 @@ The goal of `request-router` is to offer a streamlined, configuration-first rout
 
 ## Terminology
 
-* **Connection**: A single upstream HTTP endpoint capable of handling requests. Connections are addressable server instances used by services.
-* **Service**: A logical grouping of connections. Targets route requests to services, which handle them according to the selected request strategy.
 * **Router**: A listener bound to a specific address and port. It matches incoming requests to configured paths and routes them accordingly.
 * **Path**: A routing definition within a router that matches on URL and HTTP method. Each path delegates request handling to one or more targets.
+* **Connection**: A single upstream HTTP endpoint capable of handling requests. Connections are addressable server instances used by services.
+* **Service**: A logical grouping of connections. Targets route requests to services, which handle them according to the selected request strategy.
 * **Target**: A rule within a path that defines how a matching request should be handled. Targets support filtering, routing logic, and optional replication to secondary destinations (replicas).
 * **Replica**: A secondary service that receives a forwarded copy of a request from a target. Replica responses are not returned to the client.
 * **Request Action**: The action a target takes when selected. Can be `forward`, `reject`, `simulate`, or `offload`.
-* **Request Strategy**: The method used to select connections for routing within a service. Includes `ping`, `primary`, `sequence`, `success`, and `highest`.
+* **Request Strategy**: The method used to select connections for routing within a target. Includes `ping`, `primary`, `sequence`, `success`, and `highest`.
 * **Filter Strategy**: Determines how filters are evaluated within a target. Can be `all` (all filters must match) or `any` (at least one must match).
 * **Request Filter**: A condition that checks if a request matches based on headers or query parameters, using regular expressions.
 * **Header Override**: A key/value header setting applied to requests before forwarding them to the target service. Can also be used to remove headers by setting their value to an empty string.
-* **Core**: The central orchestration layer responsible for coordinating and managing the lifecycle of all routers within the service, including starting, stopping, and monitoring them.
-* **Backend**: The internal subsystem responsible for managing services and connections. It supports runtime reloading and request dispatching.
-* **Context**: A per-request data structure that tracks metadata such as trace steps, status codes, and logging details as the request flows through the router.
+* **Core**: The central orchestration layer responsible for coordinating and managing the lifecycle of all routers, including starting, stopping, and monitoring them.
+* **Backend**: The internal subsystem responsible for managing services and their corresponding connections. It supports runtime reloading and request dispatching.
+* **Context**: A per-request data structure that tracks metadata such as trace steps, status codes, and logging details as the request flows through a router.
 * **Access Log**: A per-router log that records summary information for each processed request, including trace path, status codes, and timings.
 * **Target Logger**: A per-target log used to capture detailed errors, request failures, and replica issues.
-* **Endpoint**: A general term referring to any addressable URL path where the router or an upstream connection expects to receive requests.
+* **Endpoint**: A general term referring to any addressable URL path where a router and associated upstream connection expects to receive requests.
 * **Incoming Endpoint**: The URL path where a router path expects to receive requests from clients.
 * **Upstream Endpoint**: The URL path used by a target when forwarding requests to a backend service.
 
