@@ -40,10 +40,10 @@ The goal of `request-router` is to offer a streamlined, configuration-first rout
 
 ## Terminology
 
+* **Connection**: A single backend HTTP endpoint capable of handling requests. Connections are addressable server instances that the router forwards requests to on behalf of a registered service.
+* **Service**: A logical grouping of connections. Targets route requests to services, which handle them according to the selected request strategy.
 * **Router**: A listener bound to a specific address and port. It matches incoming requests to configured paths and routes them accordingly.
 * **Path**: A routing definition within a router that matches on URL and HTTP method. Each path delegates request handling to one or more targets.
-* **Connection**: A single upstream HTTP endpoint capable of handling requests. Connections are addressable server instances used by services.
-* **Service**: A logical grouping of connections. Targets route requests to services, which handle them according to the selected request strategy.
 * **Target**: A rule within a path that defines how a matching request should be handled. Targets support filtering, routing logic, and optional replication to secondary destinations (replicas).
 * **Replica**: A secondary service that receives a forwarded copy of a request from a target. Replica responses are not returned to the client.
 * **Request Action**: The action a target takes when selected. Can be `forward`, `reject`, `simulate`, or `offload`.
@@ -64,7 +64,7 @@ The goal of `request-router` is to offer a streamlined, configuration-first rout
 
 - Docker
 - GNU Make
-- [Go](https://golang.org/doc/install) `>=1.21.3`
+- [Go](https://golang.org/doc/install) `>=1.24`
 
 _Other versions will probably work but are untested!_
 

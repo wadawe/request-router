@@ -111,7 +111,7 @@ func (cfg *ConnectionConfig) ApplyDefaults() {
 		cfg.PingEndpoint = "/ping"
 	}
 	if cfg.Timeout == "" {
-		cfg.Timeout = "30s"
+		cfg.Timeout = "10s"
 	}
 }
 
