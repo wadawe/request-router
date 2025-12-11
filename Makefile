@@ -1,5 +1,5 @@
 .PHONY: all
-all: clean build test
+all: clean build
 
 .PHONY: local
 local: clean build_local test

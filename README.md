@@ -39,8 +39,7 @@ The goal of `request-router` is to offer a streamlined, configuration-first rout
 * **No Buffering Support** : Other services have included some sort of in-memory buffer, but this solution does not implement any retry or queuing logic; failed requests will be dropped immediately.
 
 ## Terminology
-
-* **Connection**: A single upstream HTTP endpoint capable of handling requests. Connections are addressable server instances used by services.
+* **Connection**: A single backend HTTP endpoint capable of handling requests. Connections are addressable server instances that the router forwards requests to on behalf of a registered service.
 * **Service**: A logical grouping of connections. Targets route requests to services, which handle them according to the selected request strategy.
 * **Router**: A listener bound to a specific address and port. It matches incoming requests to configured paths and routes them accordingly.
 * **Path**: A routing definition within a router that matches on URL and HTTP method. Each path delegates request handling to one or more targets.
@@ -64,7 +63,7 @@ The goal of `request-router` is to offer a streamlined, configuration-first rout
 
 - Docker
 - GNU Make
-- [Go](https://golang.org/doc/install) `>=1.21.3`
+- [Go](https://golang.org/doc/install) `>=1.24`
 
 _Other versions will probably work but are untested!_
 
