@@ -27,12 +27,13 @@ The goal of `request-router` is to offer a streamlined, configuration-first rout
 
 ## Features
 
-* **Flexible Request Routing** : Route HTTP requests to multiple backends using configurable paths, targets, and routing strategies.
-* **Dynamic Configuration Reloading** : Update connections and services on the fly without downtime.
-* **Target Filtering** : Apply rules to selectively route requests based on headers or query parameters.
-* **Request Replication** : Optionally forward requests to secondary replica services for auditing or redundancy.
-* **Customisable Logging** : Configure access and target logs for easy tracability.
-* **Support for HTTP/1.1 and HTTP/2** : Choose your preferred HTTP version per router, with TLS support.
+* **Flexible request routing**: Route HTTP requests to multiple backends using configurable paths, targets, and routing strategies.
+* **Dynamic configuration reloading**: Update connections and services on the fly without downtime.
+* **Target filtering**: Selectively route requests based on headers or query parameters using flexible rules.
+* **Request replication**: Forward requests to secondary replica services for auditing or redundancy.
+* **Customisable logging**: Configure access and target logs for improved traceability.
+* **HTTP/1.1 and HTTP/2 support**: Choose the preferred HTTP version per router, with optional TLS.
+* **Metrics endpoint**: Expose Prometheus-compatible metrics at `/metrics` via the Admin Manager for monitoring.
 
 ## Limitations
 
@@ -125,6 +126,17 @@ There are a series of command-line flags that can be used when running the servi
 | dry-run | `-dry-run`                     | N         | Validates config without starting the service. |
 | version | `-version`                     | N         | Print the service version and exit. |
 | help    | `-help`                        | N         | Print the service help message and exit. |
+
+### Management
+
+The Admin Manager runs a small HTTP server alongside the main routers. 
+
+It is responsible for exposing operational and monitoring endpoints (such as `/metrics`) for the running service.
+
+The Admin Manager is configured via the `[admin]` section in the main configuration file (see [`template.conf`][config-href] for a complete example).
+
+The Admin Manager exposes one or more HTTP endpoints, including:
+- `GET /metrics` : Prometheus-style metrics endpoint for all configured routers.
 
 ### Logging
 
