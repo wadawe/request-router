@@ -15,26 +15,26 @@ type Metrics struct {
 
 // Global variables
 var (
-	metricsHandler *Metrics
-	metricLabels   = []string{"router", "path", "method", "target", "status"}
+	mh           *Metrics // Metrics handler instance
+	metricLabels = []string{"router", "path", "method", "target", "status"}
 )
 
 // Register prometheus metrics and handlers
 func RegisterMetrics(mux *http.ServeMux) {
-	metricsHandler = &Metrics{}
+	mh = &Metrics{}
 
 	// Initialise RequestsTotal metric
-	metricsHandler.RequestsTotal = prometheus.NewCounterVec(
+	mh.RequestsTotal = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "relay_requests_total",
 			Help: "Total number of requests processed by the relay",
 		},
 		metricLabels,
 	)
-	prometheus.MustRegister(metricsHandler.RequestsTotal)
+	prometheus.MustRegister(mh.RequestsTotal)
 
 	// Initialise RequestDurationSeconds metric
-	metricsHandler.RequestDurationSeconds = prometheus.NewHistogramVec(
+	mh.RequestDurationSeconds = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name:    "relay_request_duration_seconds",
 			Help:    "Duration of requests processed by the relay",
@@ -42,7 +42,7 @@ func RegisterMetrics(mux *http.ServeMux) {
 		},
 		metricLabels,
 	)
-	prometheus.MustRegister(metricsHandler.RequestDurationSeconds)
+	prometheus.MustRegister(mh.RequestDurationSeconds)
 
 	// ...
 
@@ -52,5 +52,5 @@ func RegisterMetrics(mux *http.ServeMux) {
 
 // Get the Metrics handler instance
 func GetMetricsHandler() *Metrics {
-	return metricsHandler
+	return mh
 }

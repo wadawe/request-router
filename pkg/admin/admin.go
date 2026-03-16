@@ -9,7 +9,7 @@ import (
 
 // Global variables
 var (
-	adminService *http.Server
+	as *http.Server // Admin service
 )
 
 // Start the admin service
@@ -20,7 +20,7 @@ func Start(config *config.AdminConfig) {
 	RegisterMetrics(mux)
 
 	// Create the admin service
-	adminService = &http.Server{
+	as = &http.Server{
 		Addr:    config.BindAddress,
 		Handler: mux,
 	}
@@ -28,7 +28,7 @@ func Start(config *config.AdminConfig) {
 	// Start the admin service
 	log.Printf("Running admin: %s", config.BindAddress)
 	go func() {
-		err := adminService.ListenAndServe()
+		err := as.ListenAndServe()
 
 		// Check for errors
 		// ErrServerClosed always returned when server is closed gracefully
@@ -40,8 +40,8 @@ func Start(config *config.AdminConfig) {
 
 // Stop the admin service
 func Stop() {
-	if adminService != nil {
-		err := adminService.Close()
+	if as != nil {
+		err := as.Close()
 		if err != nil {
 			log.Printf("Error stopping admin service: %v", err)
 		}
