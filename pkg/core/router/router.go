@@ -143,9 +143,10 @@ func (sr *ServiceRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	r = context.AddRequestContext(r)
 	context.AppendToContextTrace(r, "router", sr.Config.BindAddress)
 
-	// Always log the request in the access logger
-	// Defer is used to ensure the log is written after the response is sent
+	// Always log / observe the request
+	// Defer is used to ensure that the request context is fully populated before logging / observing
 	defer context.LogRequestContext(r, sr.AccessLogger)
+	defer context.ObserveRequestContext(r, sr.Config.BindAddress)
 
 	// Read the request body
 	body, err := utils.ReadRequestBody(r)
@@ -160,6 +161,7 @@ func (sr *ServiceRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		context.ReturnResponseText(w, r, http.StatusNotFound, http.StatusText(http.StatusNotFound))
 		return
 	}
+	context.SetContextRequestPath(r, r.URL.Path)
 
 	// Match the request method to a RouterPath
 	if r.Method == http.MethodOptions {

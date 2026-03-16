@@ -56,6 +56,7 @@ The goal of `request-router` is to offer a streamlined, configuration-first rout
 * **Context**: A per-request data structure that tracks metadata such as trace steps, status codes, and logging details as the request flows through a router.
 * **Access Log**: A per-router log that records summary information for each processed request, including trace path, status codes, and timings.
 * **Target Logger**: A per-target log used to capture detailed errors, request failures, and replica issues.
+* **Admin Manager**: A built-in component that exposes HTTP endpoints for managing and monitoring the running service.
 * **Endpoint**: A general term referring to any addressable URL path where a router and associated upstream connection expects to receive requests.
 * **Incoming Endpoint**: The URL path where a router path expects to receive requests from clients.
 * **Upstream Endpoint**: The URL path used by a target when forwarding requests to a backend service.

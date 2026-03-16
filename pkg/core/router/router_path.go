@@ -43,6 +43,7 @@ func (rp *RouterPath) HandleRequest(w http.ResponseWriter, r *http.Request, body
 	for _, target := range rp.Targets {
 		if len(target.Filters) == 0 || target.MatchFilters(r) {
 			context.AppendToContextTrace(r, "target", target.Config.Name)
+			context.SetContextRequestTarget(r, target.Config.Name)
 			target.ActionRequest(w, r, body)
 			return
 		}

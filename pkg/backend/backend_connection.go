@@ -94,22 +94,18 @@ func (bConn *BackendConnection) SendRequest(method string, path string, reqHeade
 	}
 
 	// Set the request headers
-	if reqHeaders != nil {
-		for hKey, hVal := range reqHeaders {
-			for _, v := range hVal {
-				req.Header.Add(hKey, v)
-			}
+	for hKey, hVal := range reqHeaders {
+		for _, v := range hVal {
+			req.Header.Add(hKey, v)
 		}
 	}
 
 	// Add any header overrides
-	if newHeaders != nil {
-		for key, value := range newHeaders {
-			if value != "" {
-				req.Header.Set(key, value)
-			} else {
-				req.Header.Del(key) // Remove the header if the value is empty
-			}
+	for key, value := range newHeaders {
+		if value != "" {
+			req.Header.Set(key, value)
+		} else {
+			req.Header.Del(key) // Remove the header if the value is empty
 		}
 	}
 

@@ -4,9 +4,14 @@
 package config
 
 type ConfigFile struct {
+	AdminConfig       *AdminConfig        `toml:"admin"`
 	ConnectionConfigs []*ConnectionConfig `toml:"connection"`
 	ServiceConfigs    []*ServiceConfig    `toml:"service"`
 	RouterConfigs     []*RouterConfig     `toml:"router"`
+}
+
+type AdminConfig struct {
+	BindAddress string `toml:"bind"` // Address to bind the admin service to
 }
 
 type ConnectionConfig struct {
