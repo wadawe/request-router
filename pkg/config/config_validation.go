@@ -21,7 +21,9 @@ func DetectDuplicate(name string, seen map[string]bool) bool {
 
 // Apply defaults to a config file
 func (cfg *ConfigFile) ApplyDefaults() {
-	cfg.AdminConfig.ApplyDefaults()
+	if cfg.AdminConfig != nil {
+		cfg.AdminConfig.ApplyDefaults()
+	}
 	for _, cCfg := range cfg.ConnectionConfigs {
 		cCfg.ApplyDefaults()
 	}
