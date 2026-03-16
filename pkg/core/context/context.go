@@ -15,16 +15,21 @@ import (
 
 	"github.com/rs/zerolog"
 
+	"github.com/wadawe/request-router/pkg/admin"
 	"github.com/wadawe/request-router/pkg/backend"
 	"github.com/wadawe/request-router/pkg/utils"
 )
 
 type RequestContext struct {
-	StartTime  time.Time         // Start time of the request
-	EndTime    time.Time         // End time of the request
-	Data       map[string]string // Relevant data to store in the context
-	Trace      bytes.Buffer      // Trace of the request
-	StatusCode int               // Status of the response sent back to the client
+	StartTime      time.Time    // Start time of the request
+	EndTime        time.Time    // End time of the request
+	RequestLength  int          // Length of the request body
+	ResponseLength int          // Length of the response body
+	RequestSource  string       // Source of the request
+	RequestTarget  string       // Target of the request
+	RequestPath    string       // Path of the request
+	Trace          bytes.Buffer // Trace of the request
+	StatusCode     int          // Status of the response sent back to the client
 }
 
 type ResponseData struct {
@@ -37,31 +42,37 @@ type ContextKey string
 
 // Key to store the context in each request
 const RequestContextKey ContextKey = "RequestContext"
-const SourceDataKey string = "Source"
-const RequestLengthDataKey string = "RequestLength"
-const ResponseLengthDataKey string = "ResponseLength"
 
 // Create a new request context and attach it to the request
 func AddRequestContext(request *http.Request) *http.Request {
 	now := time.Now()
 	requestContext := &RequestContext{
-		StartTime: now,
-		EndTime:   now,
-		Data: map[string]string{
-			RequestLengthDataKey:  "0",
-			ResponseLengthDataKey: "0",
-			SourceDataKey:         utils.GetSourceFromRequest(request),
-		},
-		Trace:      bytes.Buffer{},
-		StatusCode: 0,
+		StartTime:      now,
+		EndTime:        now,
+		RequestLength:  0,
+		ResponseLength: 0,
+		RequestSource:  utils.GetSourceFromRequest(request),
+		RequestTarget:  "",
+		RequestPath:    "unmatched",
+		Trace:          bytes.Buffer{},
+		StatusCode:     0,
 	}
 	ctx := context.WithValue(request.Context(), RequestContextKey, requestContext)
 	return request.WithContext(ctx)
 }
 
+// Get the request context from the request
+func GetRequestContext(request *http.Request) *RequestContext {
+	requestContext, ok := request.Context().Value(RequestContextKey).(*RequestContext)
+	if ok {
+		return requestContext
+	}
+	return nil
+}
+
 // Add a trace to a request context buffer
 func AppendToContextTrace(request *http.Request, component string, value string) {
-	requestContext := request.Context().Value(RequestContextKey).(*RequestContext)
+	requestContext := GetRequestContext(request)
 	if requestContext != nil {
 		if requestContext.Trace.Len() > 0 {
 			requestContext.Trace.WriteString(" -> ")
@@ -70,56 +81,83 @@ func AppendToContextTrace(request *http.Request, component string, value string)
 	}
 }
 
-// Set a data value in the request context
-func SetContextData(request *http.Request, key string, value string) {
-	requestContext := request.Context().Value(RequestContextKey).(*RequestContext)
+// Set the response length in the request context
+func SetContextResponseLength(request *http.Request, length int) {
+	requestContext := GetRequestContext(request)
 	if requestContext != nil {
-		requestContext.Data[key] = value
+		requestContext.ResponseLength = length
 	}
 }
 
-// Get a data value from the request context
-func GetContextData(request *http.Request, key string) string {
-	requestContext := request.Context().Value(RequestContextKey).(*RequestContext)
+// Set the request target in the request context
+func SetContextRequestTarget(request *http.Request, target string) {
+	requestContext := GetRequestContext(request)
 	if requestContext != nil {
-		return requestContext.Data[key]
+		requestContext.RequestTarget = target
 	}
-	return ""
+}
+
+// Set the request path in the request context
+func SetContextRequestPath(request *http.Request, path string) {
+	requestContext := GetRequestContext(request)
+	if requestContext != nil {
+		requestContext.RequestPath = path
+	}
 }
 
 // Set the request context as served
 func SetContextStatusCode(request *http.Request, status int) {
-	requestContext := request.Context().Value(RequestContextKey).(*RequestContext)
+	requestContext := GetRequestContext(request)
 	if requestContext != nil {
 		requestContext.StatusCode = status
 		requestContext.EndTime = time.Now()
 	}
 }
 
-// Get the request context status code
-func GetContextStatusCode(request *http.Request) int {
-	requestContext := request.Context().Value(RequestContextKey).(*RequestContext)
-	if requestContext != nil {
-		return requestContext.StatusCode
-	}
-	return 0
-}
-
 // Log the request context
 func LogRequestContext(request *http.Request, logger *zerolog.Logger) {
-	requestContext := request.Context().Value(RequestContextKey).(*RequestContext)
+	requestContext := GetRequestContext(request)
 	if requestContext != nil {
 		logger.Info().
 			Str("method", request.Method).
 			Str("request-url", request.URL.String()).
-			Str("request-length", requestContext.Data[RequestLengthDataKey]).
-			Str("response-length", requestContext.Data[ResponseLengthDataKey]).
+			Int("request-length", requestContext.RequestLength).
+			Int("response-length", requestContext.ResponseLength).
 			Str("response-time", requestContext.EndTime.Sub(requestContext.StartTime).String()).
 			Str("trace", requestContext.Trace.String()).
 			Int("status-code", requestContext.StatusCode).
-			Str("source", requestContext.Data[SourceDataKey]).
+			Str("source", requestContext.RequestSource).
 			Str("user-agent", request.UserAgent()).
 			Msg("Request:")
+	}
+}
+
+// Observe the request context for metrics collection
+func ObserveRequestContext(request *http.Request, router string) {
+	requestContext := GetRequestContext(request)
+	if requestContext != nil {
+
+		// Extract relevant data for metrics
+		statusCode := fmt.Sprintf("%d", requestContext.StatusCode)
+
+		// Update: relay_requests_total
+		admin.GetMetricsHandler().RequestsTotal.WithLabelValues(
+			router,                       // router
+			requestContext.RequestPath,   // path
+			request.Method,               // method
+			requestContext.RequestTarget, // target
+			statusCode,                   // response status
+		).Inc()
+
+		// Update: relay_request_duration_seconds
+		admin.GetMetricsHandler().RequestDurationSeconds.WithLabelValues(
+			router,                       // router
+			requestContext.RequestPath,   // path
+			request.Method,               // method
+			requestContext.RequestTarget, // target
+			statusCode,                   // response status
+		).Observe(requestContext.EndTime.Sub(requestContext.StartTime).Seconds())
+
 	}
 }
 
@@ -149,8 +187,8 @@ func ReturnResponseData(writer http.ResponseWriter, request *http.Request, respo
 	}
 
 	// Set the response headers
-	responseLength := fmt.Sprint(len(returnResponse.Body))
-	writer.Header().Set("Content-Length", responseLength)
+	responseLength := len(returnResponse.Body)
+	writer.Header().Set("Content-Length", fmt.Sprint(responseLength))
 	writer.Header().Set("Content-Type", returnResponse.ContentType)
 	writer.Header().Set("X-Response-Statuses", response.JoinStatusCodes())
 	writer.Header().Set("X-Request-Id", returnResponse.Headers.Get("X-Request-Id"))
@@ -158,20 +196,20 @@ func ReturnResponseData(writer http.ResponseWriter, request *http.Request, respo
 	// Write the response back to the client
 	writer.WriteHeader(response.StatusCode)
 	writer.Write(returnResponse.Body)
-	SetContextData(request, ResponseLengthDataKey, responseLength)
+	SetContextResponseLength(request, responseLength)
 	SetContextStatusCode(request, response.StatusCode)
 }
 
 // Return a text response to the client
 func ReturnResponseText(writer http.ResponseWriter, request *http.Request, status int, message string) {
-	responseLength := fmt.Sprint(len(message))
-	writer.Header().Set("Content-Length", responseLength)
+	responseLength := len(message)
+	writer.Header().Set("Content-Length", fmt.Sprint(responseLength))
 	writer.Header().Set("Content-Type", "text/plain")
 	writer.Header().Set("X-Response-Text", message) // Add the message to headers in case of 204 status
 	writer.WriteHeader(status)
 	writer.Write([]byte(message))
 	AppendToContextTrace(request, "response", message)
-	SetContextData(request, ResponseLengthDataKey, responseLength)
+	SetContextResponseLength(request, responseLength)
 	SetContextStatusCode(request, status)
 }
 
@@ -189,12 +227,12 @@ func ReturnResponseJSON(writer http.ResponseWriter, request *http.Request, statu
 	}
 
 	// Write the response
-	responseLength := fmt.Sprint(len(data))
-	writer.Header().Set("Content-Length", responseLength)
+	responseLength := len(data)
+	writer.Header().Set("Content-Length", fmt.Sprint(responseLength))
 	writer.Header().Set("Content-Type", "application/json")
 	writer.WriteHeader(status)
 	writer.Write(data)
-	SetContextData(request, ResponseLengthDataKey, responseLength)
+	SetContextResponseLength(request, responseLength)
 	SetContextStatusCode(request, status)
 }
 

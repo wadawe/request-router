@@ -14,6 +14,7 @@ import (
 	"sync"
 	"syscall"
 
+	"github.com/wadawe/request-router/pkg/admin"
 	"github.com/wadawe/request-router/pkg/backend"
 	"github.com/wadawe/request-router/pkg/config"
 	"github.com/wadawe/request-router/pkg/core"
@@ -73,6 +74,7 @@ func main() {
 				log.Printf("Received signal (%q): stopping...", sig)
 				stopping = true
 				routerManager.Stop()
+				admin.Stop()
 				utils.CloseLogFiles()
 				os.Exit(0)
 
@@ -137,7 +139,7 @@ func writePIDFile() {
 
 // Start the RouterService
 func StartRouterService(cfg *config.ConfigFile) error {
-	log.Printf("Starting router service v%s (main.StartRouterService)", buildVersion)
+	log.Printf("Starting router v%s (main.StartRouterService)", buildVersion)
 
 	var err error
 	routerManager, err = core.NewRouterManager(cfg)
@@ -149,6 +151,9 @@ func StartRouterService(cfg *config.ConfigFile) error {
 		log.Println("Dry run mode: exiting early!")
 		os.Exit(0)
 	}
+
+	// Start the admin service
+	admin.Start(cfg.AdminConfig)
 
 	// Keep restarting routerManager.Start() unless a stop signal is received
 	// This ensures the service remains available if Start() ever exits

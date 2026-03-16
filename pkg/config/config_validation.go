@@ -21,6 +21,7 @@ func DetectDuplicate(name string, seen map[string]bool) bool {
 
 // Apply defaults to a config file
 func (cfg *ConfigFile) ApplyDefaults() {
+	cfg.AdminConfig.ApplyDefaults()
 	for _, cCfg := range cfg.ConnectionConfigs {
 		cCfg.ApplyDefaults()
 	}
@@ -48,6 +49,18 @@ func (cfg *ConfigFile) ApplyDefaults() {
 func (cfg *ConfigFile) Validate() error {
 	entityNames := make(map[string]bool)
 	routerBinds := make(map[string]bool)
+
+	// Validate admin config
+	if cfg.AdminConfig == nil {
+		return fmt.Errorf("error on admin: admin config is required")
+	}
+	err := cfg.AdminConfig.Validate()
+	if err != nil {
+		return err
+	}
+	if DetectDuplicate(cfg.AdminConfig.BindAddress, routerBinds) {
+		return fmt.Errorf("error on admin: duplicate bind address found (%s)", cfg.AdminConfig.BindAddress)
+	}
 
 	// Validate all connection configs
 	if len(cfg.ConnectionConfigs) < 1 {
@@ -99,6 +112,27 @@ func (cfg *ConfigFile) Validate() error {
 		if err != nil {
 			return err
 		}
+	}
+
+	// Config is valid
+	return nil
+}
+
+// Apply defaults to the admin manager config
+func (cfg *AdminConfig) ApplyDefaults() {
+	// ...
+}
+
+// Validate the configuration of an admin manager config
+func (cfg *AdminConfig) Validate() error {
+
+	// Validate bind address
+	if cfg.BindAddress == "" {
+		return fmt.Errorf("error on admin: bind address is empty")
+	}
+	_, err := url.Parse("http://" + cfg.BindAddress)
+	if err != nil {
+		return fmt.Errorf("error on admin: bind address is invalid (%s): %s", cfg.BindAddress, err)
 	}
 
 	// Config is valid
@@ -190,6 +224,10 @@ func (cfg *RouterConfig) Validate(root *ConfigFile) error {
 	// Validate bind address
 	if cfg.BindAddress == "" {
 		return fmt.Errorf("error on router: bind address is empty")
+	}
+	_, err := url.Parse("http://" + cfg.BindAddress)
+	if err != nil {
+		return fmt.Errorf("error on router: bind address is invalid (%s): %s", cfg.BindAddress, err)
 	}
 
 	// Validate server certificate and key
