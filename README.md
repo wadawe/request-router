@@ -27,12 +27,13 @@ The goal of `request-router` is to offer a streamlined, configuration-first rout
 
 ## Features
 
-* **Flexible Request Routing** : Route HTTP requests to multiple backends using configurable paths, targets, and routing strategies.
-* **Dynamic Configuration Reloading** : Update connections and services on the fly without downtime.
-* **Target Filtering** : Apply rules to selectively route requests based on headers or query parameters.
-* **Request Replication** : Optionally forward requests to secondary replica services for auditing or redundancy.
-* **Customisable Logging** : Configure access and target logs for easy tracability.
-* **Support for HTTP/1.1 and HTTP/2** : Choose your preferred HTTP version per router, with TLS support.
+* **Flexible request routing**: Route HTTP requests to multiple backends using configurable paths, targets, and routing strategies.
+* **Dynamic configuration reloading**: Update connections and services on the fly without downtime.
+* **Target filtering**: Selectively route requests based on headers or query parameters using flexible rules.
+* **Request replication**: Forward requests to secondary replica services for auditing or redundancy.
+* **Customisable logging**: Configure access and target logs for improved traceability.
+* **HTTP/1.1 and HTTP/2 support**: Choose the preferred HTTP version per router, with optional TLS.
+* **Metrics endpoint**: Expose Prometheus-compatible metrics at `/metrics` via the Admin Manager for monitoring.
 
 ## Limitations
 
@@ -89,7 +90,7 @@ make all
 
 Incoming HTTP requests are received by a router instance bound to a specific address. Each request is matched against configured path endpoints and HTTP methods. If a matching path is found, its targets are evaluated in order.
 
-Each target applies its filter strategy (`any` or `all`) to determine if the request meets its matching criteria, using values extracted from headers or query parameters. If matched, the target handles the request using its configured action (`forward`, `reject`, `simulate`, or `offload`). For forwarding actions, the target selects a backend service and routes the request using a defined strategy (`ping`, `primary`, `sequence`, `success`, or `highest`). 
+Each target applies its filter strategy (`any` or `all`) to determine if the request meets its matching criteria, using values extracted from headers or query parameters. If matched, the target handles the request using its configured action (`forward`, `reject`, `simulate`, or `offload`). For forwarding actions, the target selects a backend service and routes the request using a defined strategy (`ping`, `primary`, `sequence`, `success`, or `highest`).
 
 If no target matches, the request is rejected with a `400 Bad Request`.
 
@@ -107,7 +108,7 @@ pkg/                        # Source code for the service.
 ├── config/                 # Contains configuration schemas, structures, validation, and loading logic.
 ├── core/                   # Contains logic for running the router service(s).
 │   ├── context/            # Manages context for individual requests to the router.
-│   └── router/             # Handles routing of requests. 
+│   └── router/             # Handles routing of requests.
 ├── utils/                  # Contains utility functions.
 └── main.go                 # Main entry point for the service.
 ```
@@ -125,6 +126,17 @@ There are a series of command-line flags that can be used when running the servi
 | dry-run | `-dry-run`                     | N         | Validates config without starting the service. |
 | version | `-version`                     | N         | Print the service version and exit. |
 | help    | `-help`                        | N         | Print the service help message and exit. |
+
+### Management
+
+The Admin Manager runs a small HTTP server alongside the main routers.
+
+It is responsible for exposing operational and monitoring endpoints for the running service.
+
+The Admin Manager is configured via the `[admin]` section in the main configuration file (see [`template.conf`][config-href] for a complete example).
+
+The Admin Manager currently exposes the following HTTP endpoint:
+- `GET /metrics`: Prometheus-style metrics endpoint for all configured routers.
 
 ### Logging
 
@@ -168,6 +180,6 @@ Other signals can be sent to the service, but will be ignored and no actions wil
 
 ## Contributing
 
-Contributions are welcome! 
+Contributions are welcome!
 
 Whether it's bug fixes, feature suggestions, or improvements to documentation; we appreciate community involvement. Feel free to submit issues & pull requests.
