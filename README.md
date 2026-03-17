@@ -131,11 +131,11 @@ There are a series of command-line flags that can be used when running the servi
 
 The Admin Manager runs a small HTTP server alongside the main routers. 
 
-It is responsible for exposing operational and monitoring endpoints (such as `/metrics`) for the running service.
+It is responsible for exposing operational and monitoring endpoints for the running service.
 
 The Admin Manager is configured via the `[admin]` section in the main configuration file (see [`template.conf`][config-href] for a complete example).
 
-The Admin Manager exposes one or more HTTP endpoints, including:
+The Admin Manager currently exposes the following HTTP endpoint:
 - `GET /metrics` : Prometheus-style metrics endpoint for all configured routers.
 
 ### Logging
